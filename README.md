@@ -1,6 +1,6 @@
 # ⚡ DRONES PANDAVEN
 
-A fast-paced arcade survival game built for the **Gamedev.js Jam 2025** — Theme: **Machines**.
+A fast-paced arcade survival game built for the **Gamedev.js Jam 2026** — Theme: **Machines**.
 
 ## 🎮 Play
 
