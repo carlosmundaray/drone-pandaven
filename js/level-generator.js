@@ -45,8 +45,12 @@ class LevelGenerator {
         }
         this.chunks=[]; this.groundSegments=[]; this.decorations=[];
         this.nextChunkZ=0; this.difficulty=0; this.chunksGenerated=0;
+        this.racingMode=false;
+        this.finishLineGenerated=false;
+        this.raceGateCounter=0;
     }
 
+    setRacingMode(enabled) { this.racingMode = enabled; }
     setDifficulty(d) { this.difficulty=clamp(d,0,1); }
 
     generateInitialChunks(dist) {
@@ -100,16 +104,231 @@ class LevelGenerator {
     }
 
     _genChunk() {
+        if(this.racingMode && this.nextChunkZ <= -15000) {
+            if(!this.finishLineGenerated) {
+                this._genFinishLineChunk(this.nextChunkZ);
+                this.finishLineGenerated = true;
+            }
+            return;
+        }
+
         const z = this.nextChunkZ;
         const chunk = { z, obstacles:[], collectibles:[] };
-        this._genGround(z);
-        this._genBuildings(chunk);
-        this._genObstacles(chunk);
-        this._genCollectibles(chunk);
-        this._genDecorations(z);
+
+        if(this.racingMode) {
+            this._genRaceGround(z);
+            this._genRaceGates(chunk, z);
+            this._genRaceCollectibles(chunk);
+        } else {
+            this._genGround(z);
+            this._genBuildings(chunk);
+            this._genObstacles(chunk);
+            this._genCollectibles(chunk);
+            this._genDecorations(z);
+        }
+
         this.chunks.push(chunk);
         this.nextChunkZ -= this.chunkDepth;
         this.chunksGenerated++;
+    }
+
+    // ====== FPV RACING TERRAIN ======
+    _genRaceGround(z) {
+        const group = new THREE.Group();
+
+        // Wide grass field
+        const fieldGeo = new THREE.PlaneGeometry(800, this.chunkDepth);
+        const fieldMat = new THREE.MeshStandardMaterial({
+            color: 0x3a7a2a, metalness: 0, roughness: 1, side: THREE.DoubleSide
+        });
+        const field = new THREE.Mesh(fieldGeo, fieldMat);
+        field.rotation.x = -Math.PI/2;
+        field.position.set(0, 0, z - this.chunkDepth/2);
+        group.add(field);
+
+        // Darker grass patches for visual variety
+        for(let i=0; i<6; i++) {
+            const patchW = randomRange(60, 200);
+            const patchD = randomRange(60, 200);
+            const patchGeo = new THREE.PlaneGeometry(patchW, patchD);
+            const greens = [0x2d6b1f, 0x458a33, 0x357a28, 0x4a9538];
+            const patchMat = new THREE.MeshStandardMaterial({
+                color: randomChoice(greens), metalness: 0, roughness: 1, side: THREE.DoubleSide
+            });
+            const patch = new THREE.Mesh(patchGeo, patchMat);
+            patch.rotation.x = -Math.PI/2;
+            patch.position.set(randomRange(-300, 300), 0.1, z - randomRange(0, this.chunkDepth));
+            group.add(patch);
+        }
+
+        // Scattered rocks/props
+        for(let i=0; i<4; i++) {
+            const rx = randomRange(-350, 350);
+            const rz = z - randomRange(50, this.chunkDepth - 50);
+            // Only place props away from the flight path
+            if(Math.abs(rx) > 100) {
+                const rockGeo = new THREE.DodecahedronGeometry(randomRange(3, 12), 0);
+                const rockMat = new THREE.MeshStandardMaterial({
+                    color: randomChoice([0x888888, 0x777766, 0x999988]),
+                    metalness: 0.2, roughness: 0.9
+                });
+                const rock = new THREE.Mesh(rockGeo, rockMat);
+                rock.position.set(rx, randomRange(1, 5), rz);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                group.add(rock);
+            }
+        }
+
+        // Scattered low trees (away from flight corridor)
+        for(let i=0; i<3; i++) {
+            const tx = randomChoice([-1,1]) * randomRange(150, 350);
+            const tz = z - randomRange(100, this.chunkDepth - 100);
+            const treeG = new THREE.Group();
+            const trunkH = randomRange(8, 16);
+            const trunkGeo = new THREE.CylinderGeometry(1, 1.5, trunkH, 5);
+            const trunkMat = new THREE.MeshStandardMaterial({color: 0x664422, roughness: 0.9});
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = trunkH/2;
+            treeG.add(trunk);
+            const canopyR = randomRange(5, 10);
+            const canopyGeo = new THREE.SphereGeometry(canopyR, 6, 5);
+            const canopyMat = new THREE.MeshStandardMaterial({
+                color: randomChoice([0x2d6b1f, 0x3d8c2e, 0x4ea83a]), roughness: 0.8
+            });
+            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+            canopy.position.y = trunkH + canopyR * 0.4;
+            canopy.scale.y = 0.65;
+            treeG.add(canopy);
+            treeG.position.set(tx, 0, tz);
+            group.add(treeG);
+        }
+
+        // Ground grid lines (subtle runway markings)
+        for(let i=0; i < this.chunkDepth; i+=100) {
+            const lineGeo = new THREE.PlaneGeometry(300, 1);
+            const lineMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff, transparent: true, opacity: 0.06, side: THREE.DoubleSide
+            });
+            const line = new THREE.Mesh(lineGeo, lineMat);
+            line.rotation.x = -Math.PI/2;
+            line.position.set(0, 0.15, z - i);
+            group.add(line);
+        }
+
+        this.scene.add(group);
+        this.groundSegments.push({ z, mesh: group });
+    }
+
+    _genRaceGates(chunk, z) {
+        // Place 2-3 gates per chunk at varying positions and altitudes
+        const numGates = randomInt(2, 3);
+        const spacing = this.chunkDepth / (numGates + 1);
+
+        for(let i=0; i<numGates; i++) {
+            const gateZ = z - spacing * (i + 1);
+            const gateX = randomRange(-60, 60);
+            const gateY = randomRange(20, 80);
+            const rot = randomRange(-0.3, 0.3); // slight angle variation
+
+            const gate = new RaceGate(gateX, gateY, gateZ, rot, this.raceGateCounter || 0, this.scene);
+            chunk.obstacles.push(gate);
+
+            this.raceGateCounter = (this.raceGateCounter || 0) + 1;
+        }
+    }
+
+    _genRaceCollectibles(chunk) {
+        // Coins along the flight path between gates
+        const nCoins = randomInt(3, 6);
+        const startX = randomRange(-40, 40);
+        const startY = randomRange(25, 70);
+        const startZ = chunk.z - randomRange(20, 80);
+        for(let i=0; i<nCoins; i++) {
+            chunk.collectibles.push(new Coin(
+                startX + randomRange(-15, 15),
+                startY + randomRange(-8, 8),
+                startZ - i * 40,
+                randomInt(1, 2), this.scene
+            ));
+        }
+
+        // Occasional power-up
+        if(Math.random() < 0.25) {
+            chunk.collectibles.push(new PowerUp(
+                randomRange(-50, 50),
+                randomRange(30, 80),
+                chunk.z - randomRange(100, this.chunkDepth - 100),
+                randomChoice(['speed', 'shield']),
+                this.scene
+            ));
+        }
+    }
+
+    _genFinishLineChunk(z) {
+        const chunk = { z, obstacles:[], collectibles:[] };
+        
+        // Use racing ground if in racing mode
+        if(this.racingMode) {
+            this._genRaceGround(z);
+        } else {
+            this._genGround(z);
+        }
+        
+        // Massive Finish Gate
+        const archGroup = new THREE.Group();
+        const gz = z - this.chunkDepth/2;
+        
+        // Neon gateway arch (huge torus)
+        const gateGeo = new THREE.TorusGeometry(50, 3, 8, 24);
+        const gateMat = new THREE.MeshStandardMaterial({
+            color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 2.5,
+            metalness: 0.9, roughness: 0.1
+        });
+        const gate = new THREE.Mesh(gateGeo, gateMat);
+        gate.position.set(0, 55, gz);
+        archGroup.add(gate);
+
+        // Support pillars
+        const pillarMat = new THREE.MeshStandardMaterial({
+            color: 0x222222, metalness: 0.8, roughness: 0.2
+        });
+        [-55, 55].forEach(side => {
+            const pGeo = new THREE.CylinderGeometry(3, 4, 110);
+            const p = new THREE.Mesh(pGeo, pillarMat);
+            p.position.set(side, 55, gz);
+            archGroup.add(p);
+            
+            // LED strip on pillar
+            const ledGeo = new THREE.CylinderGeometry(1, 1, 108);
+            const ledMat = new THREE.MeshBasicMaterial({
+                color: 0xff4400, transparent: true, opacity: 0.7
+            });
+            const led = new THREE.Mesh(ledGeo, ledMat);
+            led.position.set(side + (side > 0 ? 3 : -3), 55, gz);
+            archGroup.add(led);
+        });
+
+        // Checkerboard banner
+        const bannerGeo = new THREE.BoxGeometry(110, 18, 3);
+        const bannerMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff, metalness: 0.3, roughness: 0.5
+        });
+        const banner = new THREE.Mesh(bannerGeo, bannerMat);
+        banner.position.set(0, 108, gz);
+        archGroup.add(banner);
+
+        // FINISH text area (dark background)
+        const textBg = new THREE.Mesh(
+            new THREE.BoxGeometry(80, 12, 4),
+            new THREE.MeshBasicMaterial({ color: 0x000000 })
+        );
+        textBg.position.set(0, 108, gz + 2);
+        archGroup.add(textBg);
+
+        this.scene.add(archGroup);
+        this.decorations.push({ z, mesh: archGroup });
+        
+        this.chunks.push(chunk);
     }
 
     _genGround(z) {
@@ -320,6 +539,31 @@ class LevelGenerator {
     }
 
     _genCollectibles(chunk) {
+        if(this.racingMode) {
+            // In racing mode: Drones already "have" packages. We only generate Item Boxes (PowerUps) and Coins.
+            // Item boxes
+            const numItems = randomInt(2, 4);
+            for(let i=0; i<numItems; i++) {
+                chunk.collectibles.push(new PowerUp(
+                    randomRange(-this.cityW*0.15, this.cityW*0.15),
+                    randomRange(50, CONFIG.CITY_HEIGHT*0.3),
+                    chunk.z-randomRange(20, this.chunkDepth-20),
+                    undefined, this.scene
+                ));
+            }
+
+            // Coins
+            const nCoins=randomInt(4,10);
+            const startX=randomRange(-this.cityW*0.15,this.cityW*0.15);
+            const startY=randomRange(30,100);
+            const startZ=chunk.z-randomRange(20,80);
+            for(let i=0;i<nCoins;i++) {
+                chunk.collectibles.push(new Coin(startX+randomRange(-10,10),startY+randomRange(-5,5),startZ-i*35,randomInt(1,2),this.scene));
+            }
+            return;
+        }
+
+        // --- SURVIVAL MODE BELOW ---
         // Packages (1-2 per chunk)
         const numPkg = Math.random() < 0.3 ? 2 : 1;
         for(let p=0;p<numPkg;p++) {

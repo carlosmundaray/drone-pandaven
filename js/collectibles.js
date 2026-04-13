@@ -145,12 +145,16 @@ class PowerUp {
     _create() {
         this.mesh=new THREE.Group();
         const c=this.colorMap[this.powerType];
-        const bGeo=new THREE.OctahedronGeometry(this.radius,0);
-        const bMat=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.8,metalness:0.4,roughness:0.2,transparent:true,opacity:0.85});
+        
+        // Outer holographic box (Mario Kart Item Box style)
+        const bGeo=new THREE.BoxGeometry(this.radius*1.5, this.radius*1.5, this.radius*1.5);
+        const bMat=new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:0.2, metalness:0.2, roughness:0.2, transparent:true, opacity:0.3, wireframe: true});
         this.bodyMesh=new THREE.Mesh(bGeo,bMat);this.mesh.add(this.bodyMesh);
-        const rGeo=new THREE.TorusGeometry(this.radius+3,0.8,6,16);
-        const rMat=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.5,transparent:true,opacity:0.4});
-        this.ringMesh=new THREE.Mesh(rGeo,rMat);this.mesh.add(this.ringMesh);
+        
+        // Inner glowing core
+        const coreGeo = new THREE.BoxGeometry(this.radius*0.8, this.radius*0.8, this.radius*0.8);
+        const coreMat = new THREE.MeshStandardMaterial({color:c, emissive:c, emissiveIntensity:1.5, transparent:true, opacity:0.9});
+        this.ringMesh=new THREE.Mesh(coreGeo,coreMat);this.mesh.add(this.ringMesh);
         this.mesh.position.set(this.x,this.y,this.z);
         this.mesh.scale.set(0.01,0.01,0.01);
         this.scene.add(this.mesh);

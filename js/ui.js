@@ -9,7 +9,7 @@ class UI {
         this.rushFlash=0;
         this.scanlineOffset=0;
         this.selectedMenuItem=0;
-        this.menuItems=['JUGAR','MEJORAS','CÓMO JUGAR'];
+        this.menuItems=['SUPERVIVENCIA','CARRERA PANDAVEN','MEJORAS','CÓMO JUGAR'];
         this.menuAnimTimer=0;
         this.selectedShopItem=0;
         this.shopItems=Object.keys(CONFIG.UPGRADES);
@@ -45,7 +45,9 @@ class UI {
     renderCockpitHUD(ctx, w, h, gs) {
         const {score,combo,comboTimer,lives,maxLives,rushMeter,rushMax,rushActive,
                coins,timeAlive,deliveries,carryingPackage,speed,altitude,
-               barrelRollCD,empShieldActive,empAvailable,jammed,jamIntensity} = gs;
+               barrelRollCD,empShieldActive,empAvailable,jammed,jamIntensity,
+               gameMode,preRaceTimer,racePosition,raceFinished,
+               playerGatesPassed,totalGates} = gs;
 
         // Jammer distortion
         if(jammed && jamIntensity > 0) {
@@ -140,6 +142,133 @@ class UI {
         } else {
             ctx.fillStyle=COLORS.NEON_CYAN; ctx.font='10px "Rajdhani"'; ctx.textAlign='left';
             ctx.fillText('⟵⟵ A/D ROLL ⟶⟶', 20, h-48);
+        }
+
+        // --- RACING HUD (FPV Style) ---
+        if(gameMode === 'racing') {
+
+            // === SPEED LINES EFFECT ===
+            if(speed > 100 && preRaceTimer <= 0) {
+                ctx.save();
+                const intensity = clamp((speed - 100) / 200, 0, 1);
+                ctx.globalAlpha = intensity * 0.3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                const numLines = Math.floor(intensity * 16);
+                for(let i=0; i<numLines; i++) {
+                    const angle = randomRange(0, Math.PI*2);
+                    const dist = randomRange(h*0.15, h*0.45);
+                    const len = randomRange(20, 60) * intensity;
+                    const sx = w/2 + Math.cos(angle) * dist;
+                    const sy = h/2 + Math.sin(angle) * dist * 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx + Math.cos(angle) * len, sy + Math.sin(angle) * len * 0.6);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // === FPV VIGNETTE (circular darkness at edges) ===
+            ctx.save();
+            const vig = ctx.createRadialGradient(w/2, h/2, h*0.28, w/2, h/2, h*0.65);
+            vig.addColorStop(0, 'transparent');
+            vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+            ctx.fillStyle = vig;
+            ctx.fillRect(0,0,w,h);
+            ctx.restore();
+
+            // === POSITION (top right, large) ===
+            ctx.save();
+            const posColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#aaaaaa', '#888888'];
+            ctx.font='italic bold 52px "Rajdhani", sans-serif';
+            ctx.fillStyle = posColors[Math.min(racePosition-1, 4)];
+            ctx.textAlign='right';
+            const suffix = racePosition===1?'er':racePosition===2?'do':racePosition===3?'ro':'to';
+            ctx.fillText(`${racePosition}${suffix}`, w-25, 85);
+            ctx.font='18px "Rajdhani", sans-serif';
+            ctx.fillStyle='#aaaaaa';
+            ctx.fillText('/ 5 PILOTOS', w-25, 108);
+            ctx.restore();
+
+            // === GATE COUNTER (top center) ===
+            ctx.save();
+            ctx.font='bold 16px "Rajdhani", sans-serif';
+            ctx.fillStyle='#00ffaa';
+            ctx.textAlign='center';
+            ctx.fillText(`⬡ GATES: ${playerGatesPassed}`, w/2, 85);
+            // Gate progress bar
+            const barW = 200, barH = 6;
+            const barX = w/2 - barW/2, barY = 92;
+            ctx.fillStyle='rgba(0,255,170,0.15)';
+            ctx.fillRect(barX, barY, barW, barH);
+            const progress = totalGates > 0 ? playerGatesPassed / totalGates : 0;
+            const grd = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+            grd.addColorStop(0, '#00ffaa');
+            grd.addColorStop(1, '#00ff55');
+            ctx.fillStyle = grd;
+            ctx.fillRect(barX, barY, barW * progress, barH);
+            ctx.restore();
+
+            // === RACE TIMER (below gate counter) ===
+            ctx.save();
+            ctx.font='bold 22px "Rajdhani", sans-serif';
+            ctx.fillStyle='#ffffff';
+            ctx.textAlign='center';
+            const rMins = Math.floor(timeAlive/60);
+            const rSecs = Math.floor(timeAlive%60);
+            const rMs = Math.floor((timeAlive%1)*100);
+            ctx.fillText(`${rMins}:${rSecs.toString().padStart(2,'0')}.${rMs.toString().padStart(2,'0')}`, w/2, 118);
+            ctx.restore();
+
+            // === COUNTDOWN OVERLAY ===
+            if(preRaceTimer > 0) {
+                ctx.save();
+                ctx.fillStyle='rgba(0,0,0,0.6)';
+                ctx.fillRect(0,0,w,h);
+                const tick = Math.ceil(preRaceTimer);
+                const scale = 1 + (preRaceTimer % 1) * 0.3;
+                ctx.font=`bold ${Math.floor(140*scale)}px "Orbitron", monospace`;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                // Glow
+                ctx.shadowColor = tick <= 1 ? '#00ff00' : '#FFB800';
+                ctx.shadowBlur = 40;
+                ctx.fillStyle = tick <= 1 ? '#00ff00' : '#FFB800';
+                ctx.fillText(tick <= 0 ? 'GO!' : tick, w/2, h/2);
+                ctx.shadowBlur = 0;
+
+                ctx.font='bold 20px "Rajdhani", sans-serif';
+                ctx.fillStyle='#aaaaaa';
+                ctx.fillText('CARRERA PANDAVEN', w/2, h/2 + 80);
+                ctx.restore();
+            }
+
+            // === FINISH OVERLAY ===
+            if(raceFinished) {
+                ctx.save();
+                ctx.fillStyle='rgba(0,0,0,0.55)';
+                ctx.fillRect(0,0,w,h);
+
+                // Trophy / position
+                ctx.font='bold 70px "Rajdhani", sans-serif';
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.shadowColor = racePosition === 1 ? '#FFD700' : '#00ffaa';
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = racePosition === 1 ? '#FFD700' : '#ffffff';
+                ctx.fillText(racePosition === 1 ? '🏆 ¡VICTORIA!' : 'FIN DE CARRERA', w/2, h/2 - 40);
+                ctx.shadowBlur = 0;
+
+                ctx.font='bold 32px "Rajdhani", sans-serif';
+                ctx.fillStyle = posColors[Math.min(racePosition-1, 4)];
+                ctx.fillText(`Posición Final: ${racePosition}° de 5`, w/2, h/2 + 30);
+
+                ctx.font='18px "Rajdhani", sans-serif';
+                ctx.fillStyle='#aaaaaa';
+                ctx.fillText(`Gates: ${playerGatesPassed} | Tiempo: ${rMins||0}:${(rSecs||0).toString().padStart(2,'0')}`, w/2, h/2 + 70);
+                ctx.restore();
+            }
         }
 
         // --- MINIMAP ---
@@ -495,7 +624,7 @@ class UI {
         ctx.textAlign='center';
         ctx.fillText('ENTREGAS RÁPIDAS — PRIMERA PERSONA', w/2, ty+72);
 
-        this.menuItems=['JUGAR','MEJORAS','CÓMO JUGAR'];
+        this.menuItems=['SUPERVIVENCIA','CARRERA PANDAVEN','MEJORAS','CÓMO JUGAR'];
         const startY=h*0.5;
         this.menuItems.forEach((item,i)=>{
             const y=startY+i*55;

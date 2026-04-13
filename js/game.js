@@ -193,6 +193,13 @@ class Game {
                     empAvailable:this.rushMeter>=CONFIG.EMP_SHIELD_COST,
                     jammed:this.player?this.player.jammed:false,
                     jamIntensity:this.player?this.player.jamIntensity:0,
+                    // Racing logic
+                    gameMode: this.gameMode,
+                    preRaceTimer: this.preRaceTimer,
+                    racePosition: this.racePosition,
+                    raceFinished: this.raceFinished,
+                    playerGatesPassed: this.playerGatesPassed || 0,
+                    totalGates: this.totalGates || 0,
                 });
                 break;
             case 'paused':this.ui.renderPauseMenu(ctx,w,h);break;
@@ -227,23 +234,55 @@ class Game {
         if(this.input.isConfirmPressed()){
             this.audio.init();this.audio.resume();this.audio.playMenuConfirm();
             switch(this.ui.selectedMenuItem){
-                case 0:this._startGame();break;
-                case 1:this.state='shop';this.ui.selectedShopItem=0;break;
-                case 2:this.state='tutorial';break;
+                case 0:this._startGame('survival');break;
+                case 1:this._startGame('racing');break;
+                case 2:this.state='shop';this.ui.selectedShopItem=0;break;
+                case 3:this.state='tutorial';break;
             }
         }
     }
 
-    _startGame() {
+    _startGame(mode) {
         if(this.player) this.player.dispose();
+        // Dispose existing AI racers
+        if(this.aiRacers) {
+            for(const r of this.aiRacers) r.dispose();
+        }
         this.levelGen.reset();
         if(this.particles) this.particles.clear();
 
+        this.gameMode = mode || 'survival';
         this.score=0;this.combo=0;this.comboTimer=0;this.maxCombo=0;
         this.coinsEarned=0;this.deliveries=0;
         this.rushMeter=0;this.rushActive=false;this.rushTimer=0;
         this.timeAlive=0;this.scrollSpeed=CONFIG.SCROLL_SPEED;
         this.timeScale=1;this.difficulty=0;this.rushCount=0;this.tempEffects=[];
+
+        // Racing variables
+        if(this.gameMode === 'racing') {
+            this.preRaceTimer = 3.5; // 3.. 2.. 1.. GO!
+            this.raceFinished = false;
+            this.racePosition = 1;
+            this.playerGatesPassed = 0;
+            this.totalGates = 0;
+            this.levelGen.setRacingMode(true);
+            this.aiRacers = [];
+            
+            // Create 4 AI Racers
+            const racerColors = [0xff2222, 0x22ff22, 0x2222ff, 0xff22ff];
+            const startPositions = [
+                {x: -40, z: -40}, {x: -20, z: -80}, {x: 20, z: -80}, {x: 40, z: -40}
+            ];
+            for(let i=0; i<4; i++) {
+                this.aiRacers.push(new AIRacer(
+                    startPositions[i].x, 80, startPositions[i].z, racerColors[i], this.scene
+                ));
+            }
+        } else {
+            this.preRaceTimer = 0;
+            this.levelGen.setRacingMode(false);
+            this.aiRacers = [];
+        }
 
         this.player=new Player(0,80,0,this.scene);
         this.player.upgrades={...this.playerUpgrades};
@@ -278,8 +317,18 @@ class Game {
         this.difficulty=Math.min(1,this.timeAlive/(CONFIG.DIFFICULTY_INCREASE_INTERVAL*10));
         this.levelGen.setDifficulty(this.difficulty);
 
+        // Racing countdown logic
+        if(this.gameMode === 'racing' && this.preRaceTimer > 0) {
+            this.preRaceTimer -= dt;
+            if(this.preRaceTimer <= 0) {
+                this.audio.playPickup(); // "GO!" sound
+                this.ui.addNotification('¡GO!', COLORS.DELIVERY_GREEN, 1.5, 40);
+            }
+        }
+
         // Auto-scroll speed
-        const tgtSpd=lerp(CONFIG.SCROLL_SPEED,CONFIG.MAX_SCROLL_SPEED,this.difficulty);
+        let tgtSpd=lerp(CONFIG.SCROLL_SPEED,CONFIG.MAX_SCROLL_SPEED,this.difficulty);
+        if(this.gameMode === 'racing' && this.preRaceTimer > 0) tgtSpd = 0;
         this.scrollSpeed=lerp(this.scrollSpeed,tgtSpd*(this.rushActive?CONFIG.RUSH_SPEED_MULT:1),2*dt);
 
         if(this.player&&this.player.alive) {
@@ -287,13 +336,15 @@ class Game {
             const md=this.input.getMouseDelta();
             this.camera.applyMouseDelta(md.x, md.y);
 
-            // Auto-forward movement based on scroll speed
-            const fwd = this.camera.getForward();
-            this.player.z -= this.scrollSpeed*dt;
+            // Forward movement
+            if (this.preRaceTimer <= 0) {
+                this.player.z -= this.scrollSpeed*dt;
+            }
 
             // Player update
             const bounds={left:-CONFIG.CITY_WIDTH*0.22,right:CONFIG.CITY_WIDTH*0.22,bottom:15,top:CONFIG.CITY_HEIGHT*0.7};
-            this.player.update(dt, this.input, bounds, this.camera);
+            // Only allow lateral/vertical movement if not waiting for race to start
+            this.player.update((this.preRaceTimer > 0 ? 0 : dt), this.input, bounds, this.camera);
 
             // EMP Shield activation
             if(this.input.isEMPPressed() && !this.player.empShieldActive) {
@@ -377,6 +428,53 @@ class Game {
                 else o.update(dt);
             }
             for(const c of collectibles) c.update(dt);
+
+            // --- Racing Logic ---
+            if(this.gameMode === 'racing') {
+                // Collect all race gates from obstacles
+                const raceGates = obstacles.filter(o => o.type === 'race_gate');
+
+                // Update AI Racers — pass gates for pathfinding
+                for(const racer of this.aiRacers) {
+                    racer.update((this.preRaceTimer > 0 ? 0 : dt), raceGates);
+                }
+
+                // Player gate checkpoint check
+                for(const gate of raceGates) {
+                    if(!gate.passed && gate.checkPass(this.player.x, this.player.y, this.player.z, this.player.z + this.scrollSpeed * dt)) {
+                        this.playerGatesPassed = (this.playerGatesPassed || 0) + 1;
+                        this.score += 100;
+                        this.audio.playPickup();
+                        this.particles.emit(gate.x, gate.y, gate.z, 'neon', 15);
+                        this.camera.shake(2, 0.1);
+                        this.ui.addNotification(`✓ GATE ${this.playerGatesPassed}`, '#00ffaa', 1.0);
+                    }
+                }
+
+                // Calculate Position based on gates passed + Z progress
+                let allRacers = [
+                    { isPlayer: true, gates: this.playerGatesPassed || 0, z: this.player.z },
+                    ...this.aiRacers.map(r => ({ isPlayer: false, gates: r.gatesPassed, z: r.z }))
+                ];
+                allRacers.sort((a,b) => {
+                    if(b.gates !== a.gates) return b.gates - a.gates; // more gates = better
+                    return a.z - b.z; // lower Z = further ahead
+                });
+                this.racePosition = allRacers.findIndex(r => r.isPlayer) + 1;
+                this.totalGates = this.levelGen.raceGateCounter || 0;
+
+                // Check Finish Line crossing (-15000 Z)
+                if(this.player.z <= -15000 && !this.raceFinished) {
+                    this.raceFinished = true;
+                    this.ui.addNotification(
+                        this.racePosition === 1 ? '🏆 ¡VICTORIA!' : `POSICIÓN ${this.racePosition}°`,
+                        this.racePosition === 1 ? '#FFD700' : '#ff4444', 4.0
+                    );
+                    setTimeout(() => {
+                        this.state = 'gameover';
+                    }, 4000);
+                }
+            }
 
             // Reset jammer
             this.player.jammed = false;
