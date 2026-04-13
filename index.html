@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Drones PandaVen — El juego de entregas rápidas. Vuela tu drone por la ciudad cyberpunk, recoge paquetes y entrégalos a tiempo.">
+    <meta name="keywords" content="drones, pandaven, delivery, game, 3d, cyberpunk, arcade">
+    <meta name="author" content="PandaVen Games">
+    <meta name="theme-color" content="#0a0a1a">
+    
+    <meta property="og:title" content="Drones PandaVen — El Juego de Entregas Rápidas">
+    <meta property="og:description" content="Vuela tu drone por una ciudad futurista. Recoge paquetes y entrégalos lo más rápido posible.">
+    <meta property="og:type" content="website">
+    
+    <title>Drones PandaVen — Entregas Rápidas 3D</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐼</text></svg>">
+    <script src="js/lib/three.min.js"></script>
+</head>
+<body>
+    <div id="loadingOverlay">
+        <div class="loading-title">PANDAVEN</div>
+        <div class="loading-subtitle">INICIANDO SISTEMA DE ENTREGAS</div>
+        <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-hint">DRONES • ENTREGAS RÁPIDAS • 3D</div>
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="hudCanvas"></canvas>
+    </div>
+
+    <div class="touch-hint">TOCA PARA MOVER • LADO DERECHO PARA BOOST</div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/hazards.js"></script>
+    <script src="js/collectibles.js"></script>
+    <script src="js/level-generator.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

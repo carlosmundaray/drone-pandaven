@@ -1,0 +1,101 @@
+/* ============================================
+   DRONES PANDAVEN 3D — Styles
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background-color: #050810;
+    font-family: 'Rajdhani', 'Orbitron', sans-serif;
+    color: #e0e8f0;
+    -webkit-font-smoothing: antialiased;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+}
+
+#gameContainer {
+    width: 100%; height: 100%;
+    position: relative; background: #050810; overflow: hidden;
+}
+
+#gameContainer > canvas:first-child {
+    display: block; width: 100% !important; height: 100% !important;
+    position: absolute; top: 0; left: 0;
+}
+
+#hudCanvas {
+    display: block; position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+}
+
+#loadingOverlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(135deg, #050810 0%, #0a1628 50%, #050810 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 1000; transition: opacity 0.5s ease;
+}
+
+.loading-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 56px; font-weight: 900;
+    background: linear-gradient(90deg, #FFB800, #FF8C00, #FFB800);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 8px;
+    filter: drop-shadow(0 0 20px rgba(255, 184, 0, 0.5));
+    animation: loadingPulse 1.5s ease-in-out infinite;
+    margin-bottom: 10px;
+}
+
+.loading-subtitle {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px; color: #667788; letter-spacing: 6px;
+    text-transform: uppercase; margin-bottom: 40px;
+}
+
+.loading-bar-container {
+    width: 300px; height: 4px;
+    background: rgba(255, 184, 0, 0.1); border-radius: 2px;
+    overflow: hidden;
+}
+
+.loading-bar {
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, #FFB800, transparent);
+    border-radius: 2px; animation: loadingSlide 1.2s ease-in-out infinite;
+}
+
+.loading-hint {
+    margin-top: 50px; font-size: 10px; color: #445566; letter-spacing: 3px;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+}
+@keyframes loadingSlide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.touch-hint {
+    display: none; position: fixed; bottom: 10px; left: 50%;
+    transform: translateX(-50%); font-size: 10px; color: #445566;
+    letter-spacing: 2px; z-index: 10; pointer-events: none;
+    font-family: 'Rajdhani', sans-serif;
+}
+@media (hover: none) and (pointer: coarse) { .touch-hint { display: block; } }
+
+@media (max-width: 768px) {
+    .loading-title { font-size: 32px; letter-spacing: 4px; }
+    .loading-subtitle { font-size: 10px; letter-spacing: 3px; }
+    .loading-bar-container { width: 200px; }
+}
+
+::-webkit-scrollbar { display: none; }
+*:focus { outline: none; }
