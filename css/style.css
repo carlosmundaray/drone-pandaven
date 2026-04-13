@@ -1,5 +1,5 @@
 /* ============================================
-   DRONES PANDAVEN 3D — Styles
+   DRONES PANDAVEN 3D — Styles (FPS Inmersivo)
    ============================================ */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
@@ -8,17 +8,18 @@
 
 html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background-color: #050810;
+    background-color: #87CEEB;
     font-family: 'Rajdhani', 'Orbitron', sans-serif;
     color: #e0e8f0;
     -webkit-font-smoothing: antialiased;
     user-select: none; -webkit-user-select: none;
     touch-action: none;
+    cursor: crosshair;
 }
 
 #gameContainer {
     width: 100%; height: 100%;
-    position: relative; background: #050810; overflow: hidden;
+    position: relative; background: #87CEEB; overflow: hidden;
 }
 
 #gameContainer > canvas:first-child {
@@ -32,9 +33,10 @@ html, body {
     pointer-events: none; z-index: 10;
 }
 
+/* Loading Screen */
 #loadingOverlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(135deg, #050810 0%, #0a1628 50%, #050810 100%);
+    background: linear-gradient(135deg, #6BAED6 0%, #87CEEB 50%, #A8D8EA 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     z-index: 1000; transition: opacity 0.5s ease;
 }
@@ -42,24 +44,24 @@ html, body {
 .loading-title {
     font-family: 'Orbitron', monospace;
     font-size: 56px; font-weight: 900;
-    background: linear-gradient(90deg, #FFB800, #FF8C00, #FFB800);
+    background: linear-gradient(90deg, #CC8800, #FF8C00, #CC8800);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
     letter-spacing: 8px;
-    filter: drop-shadow(0 0 20px rgba(255, 184, 0, 0.5));
+    filter: drop-shadow(0 0 20px rgba(200, 130, 0, 0.5));
     animation: loadingPulse 1.5s ease-in-out infinite;
     margin-bottom: 10px;
 }
 
 .loading-subtitle {
     font-family: 'Rajdhani', sans-serif;
-    font-size: 14px; color: #667788; letter-spacing: 6px;
+    font-size: 14px; color: #2a4455; letter-spacing: 6px;
     text-transform: uppercase; margin-bottom: 40px;
 }
 
 .loading-bar-container {
     width: 300px; height: 4px;
-    background: rgba(255, 184, 0, 0.1); border-radius: 2px;
+    background: rgba(200, 130, 0, 0.15); border-radius: 2px;
     overflow: hidden;
 }
 
@@ -70,14 +72,61 @@ html, body {
 }
 
 .loading-hint {
-    margin-top: 50px; font-size: 10px; color: #445566; letter-spacing: 3px;
+    margin-top: 50px; font-size: 10px; color: #2a5577; letter-spacing: 3px;
     font-family: 'Rajdhani', sans-serif;
+}
+
+/* Pointer Lock Overlay */
+.pointer-lock-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(3, 6, 16, 0.7);
+    display: none; /* Hidden by default, shown via JS */
+    flex-direction: column; align-items: center; justify-content: center;
+    z-index: 500; pointer-events: none;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.pointer-lock-overlay.visible {
+    display: flex;
+}
+
+.pointer-lock-content {
+    text-align: center;
+}
+
+.pointer-lock-icon {
+    font-size: 48px;
+    animation: lockPulse 2s ease-in-out infinite;
+    margin-bottom: 16px;
+}
+
+.pointer-lock-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    color: #00f0ff;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    margin-bottom: 8px;
+}
+
+.pointer-lock-sub {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    color: #667788;
+    letter-spacing: 2px;
+}
+
+@keyframes lockPulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 @keyframes loadingPulse {
     0%, 100% { opacity: 0.7; transform: scale(1); }
     50% { opacity: 1; transform: scale(1.02); }
 }
+
 @keyframes loadingSlide {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
@@ -89,6 +138,7 @@ html, body {
     letter-spacing: 2px; z-index: 10; pointer-events: none;
     font-family: 'Rajdhani', sans-serif;
 }
+
 @media (hover: none) and (pointer: coarse) { .touch-hint { display: block; } }
 
 @media (max-width: 768px) {

@@ -1,5 +1,5 @@
 // ============================================
-// DRONES PANDAVEN 3D — Utils & Config
+// DRONES PANDAVEN 3D — Utils & Config (First Person)
 // ============================================
 
 const CONFIG = {
@@ -17,7 +17,42 @@ const CONFIG = {
     DRONE_MAX_LIVES: 3,
     DRONE_INVINCIBILITY_TIME: 1.5,
 
-    // Rush Mode (like Drones PandaVen)
+    // First Person Camera
+    MOUSE_SENSITIVITY: 0.002,
+    CAMERA_COCKPIT_HEIGHT: 6,
+    HEAD_BOB_INTENSITY: 0.15,
+    HEAD_BOB_SPEED: 8,
+    ENGINE_VIBRATION: 0.08,
+    CAMERA_TILT_FACTOR: 0.12,
+    FPS_FOV: 80,
+    FPS_FOV_BOOST: 100,
+    FPS_FOV_RUSH: 95,
+
+    // Combat
+    PROJECTILE_SPEED: 320,
+    PROJECTILE_LIFE: 4,
+    PROJECTILE_RADIUS: 3,
+    ENEMY_FIRE_RATE_MIN: 2.5,
+    ENEMY_FIRE_RATE_MAX: 4,
+    TURRET_FIRE_RATE: 2.2,
+    TURRET_BURST: 3,
+    TURRET_BURST_DELAY: 0.15,
+    TURRET_DETECT_RANGE: 350,
+    BARREL_ROLL_DURATION: 0.4,
+    BARREL_ROLL_COOLDOWN: 2,
+    EMP_SHIELD_DURATION: 2,
+    EMP_SHIELD_COST: 30,
+    EMP_SHIELD_RADIUS: 25,
+
+    // Enemy types
+    KAMIKAZE_SPEED: 220,
+    KAMIKAZE_DETECT_RANGE: 300,
+    PATROL_DETECT_RANGE: 400,
+    PATROL_SHOOT_RANGE: 300,
+    JAMMER_RANGE: 150,
+    JAMMER_DISTORTION: 0.5,
+
+    // Rush Mode
     RUSH_MAX: 100,
     RUSH_GAIN_PER_DELIVERY: 25,
     RUSH_GAIN_PER_PACKAGE: 8,
@@ -26,16 +61,16 @@ const CONFIG = {
     RUSH_SCORE_MULT: 3,
 
     // World
-    SCROLL_SPEED: 120,
-    MAX_SCROLL_SPEED: 280,
-    CITY_WIDTH: 600,
-    CITY_HEIGHT: 400,
+    SCROLL_SPEED: 130,
+    MAX_SCROLL_SPEED: 300,
+    CITY_WIDTH: 200,
+    CITY_HEIGHT: 300,
     CHUNK_DEPTH: 800,
 
     // Difficulty
     DIFFICULTY_INCREASE_INTERVAL: 20,
     BASE_OBSTACLE_DENSITY: 0.3,
-    MAX_OBSTACLE_DENSITY: 0.75,
+    MAX_OBSTACLE_DENSITY: 0.8,
 
     // Scoring
     DELIVERY_SCORE: 250,
@@ -44,7 +79,7 @@ const CONFIG = {
     COMBO_TIMEOUT: 4,
     MAX_COMBO_MULT: 8,
 
-    // Camera
+    // Camera legacy (used by menu scene)
     CAMERA_DISTANCE: 300,
     CAMERA_HEIGHT: 120,
     CAMERA_FOV: 70,
@@ -53,7 +88,7 @@ const CONFIG = {
     FOG_FAR: 2500,
 
     // Particles
-    MAX_PARTICLES: 600,
+    MAX_PARTICLES: 800,
 
     // Audio
     MASTER_VOLUME: 0.3,
@@ -71,41 +106,50 @@ const CONFIG = {
 };
 
 const COLORS = {
-    BG_DARK: '#0a0a1a',
-    BG_MID: '#0f1a2e',
-    BG_LIGHT: '#1a2540',
+    BG_DARK: '#87CEEB',
+    BG_MID: '#B0D4E8',
+    BG_LIGHT: '#C8E0F0',
 
     DRONE_YELLOW: '#FFB800',
-    DRONE_DARK: '#1a1a1a',
+    DRONE_DARK: '#2a2a2a',
     DRONE_ACCENT: '#FF8C00',
 
-    NEON_CYAN: '#00f0ff',
-    NEON_PINK: '#ff2d78',
-    NEON_PURPLE: '#aa44ff',
-    NEON_GREEN: '#39ff14',
+    NEON_CYAN: '#0088cc',
+    NEON_PINK: '#cc2255',
+    NEON_PURPLE: '#7733aa',
+    NEON_GREEN: '#22aa44',
 
     PACKAGE_BROWN: '#8B6914',
     PACKAGE_TAPE: '#FFB800',
 
-    DELIVERY_GREEN: '#00ff88',
-    DELIVERY_GLOW: '#00ffaa',
+    DELIVERY_GREEN: '#00cc66',
+    DELIVERY_GLOW: '#00dd77',
 
     RUSH_ORANGE: '#ff6600',
     RUSH_YELLOW: '#ffaa00',
 
-    DANGER_RED: '#ff1744',
+    DANGER_RED: '#dd1133',
+    PROJECTILE_RED: '#ff2244',
+    PROJECTILE_GLOW: '#ff4466',
 
     GOLD: '#ffd700',
     COIN_GOLD: '#FFD700',
 
-    BUILDING_1: '#0d1117',
-    BUILDING_2: '#161b22',
-    BUILDING_3: '#1a2332',
+    BUILDING_1: '#C8BEB0',
+    BUILDING_2: '#A8A098',
+    BUILDING_3: '#D8D0C4',
 
-    UI_TEXT: '#e0e8f0',
-    UI_DIM: '#667788',
-    UI_PANEL: 'rgba(10, 10, 26, 0.88)',
-    UI_PANEL_BORDER: 'rgba(255, 184, 0, 0.25)',
+    SHIELD_BLUE: '#4488ff',
+    EMP_CYAN: '#00bbee',
+
+    UI_TEXT: '#f0f4f8',
+    UI_DIM: '#99aabb',
+    UI_PANEL: 'rgba(15, 25, 40, 0.85)',
+    UI_PANEL_BORDER: 'rgba(255, 184, 0, 0.35)',
+    COCKPIT_HUD: 'rgba(0, 180, 220, 0.9)',
+    COCKPIT_HUD_DIM: 'rgba(0, 150, 200, 0.4)',
+    THREAT_RED: 'rgba(220, 20, 50, 0.85)',
+    MINIMAP_BG: 'rgba(10, 18, 30, 0.85)',
 };
 
 // --- Math ---
@@ -117,6 +161,8 @@ function randomRange(a, b) { return a + Math.random() * (b - a); }
 function randomInt(a, b) { return Math.floor(randomRange(a, b + 1)); }
 function randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function normalize(x, y) { const l=Math.sqrt(x*x+y*y); return l===0?{x:0,y:0}:{x:x/l,y:y/l}; }
+function normalize3D(x,y,z) { const l=Math.sqrt(x*x+y*y+z*z); return l===0?{x:0,y:0,z:0}:{x:x/l,y:y/l,z:z/l}; }
+function angleBetween(x1,z1,x2,z2) { return Math.atan2(x2-x1,z2-z1); }
 
 function hexToRgb(hex) {
     const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
