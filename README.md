@@ -1,10 +1,10 @@
-# ⚡ OVERCLOCK
+# ⚡ DRONES PANDAVEN
 
 A fast-paced arcade survival game built for the **Gamedev.js Jam 2025** — Theme: **Machines**.
 
 ## 🎮 Play
 
-Navigate through the interior of a massive malfunctioning machine as **BOLT**, a tiny maintenance bot. Dodge gears, pistons, electrical arcs, and steam vents while collecting energy cores to trigger **OVERCLOCK** mode!
+Navigate through the interior of a massive malfunctioning machine as **BOLT**, a tiny maintenance bot. Dodge gears, pistons, electrical arcs, and steam vents while collecting energy cores to trigger **DRONES PANDAVEN** mode!
 
 ### Controls
 
@@ -18,8 +18,8 @@ Navigate through the interior of a massive malfunctioning machine as **BOLT**, a
 ## 🔥 Features
 
 - **Procedural Machine Interiors** — Every run generates unique layouts of gears, pipes, pistons, and circuits
-- **Overclock Mechanic** — Fill the meter to trigger overdrive (2x speed, 3x score, visual chaos)
-- **Upgrade System** — Spend collected scrap to upgrade: Shield, Speed, Magnet Range, Overclock Duration, Dash Cooldown
+- **Drones PandaVen Mechanic** — Fill the meter to trigger overdrive (2x speed, 3x score, visual chaos)
+- **Upgrade System** — Spend collected scrap to upgrade: Shield, Speed, Magnet Range, Drones PandaVen Duration, Dash Cooldown
 - **Combo System** — Collecting cores without getting hit builds combos for massive score multipliers
 - **Power-Ups** — Shield, Speed Boost, Magnet, Time Slow
 - **Procedural Audio** — All sound effects and music generated with Web Audio API (no audio files!)
@@ -35,7 +35,7 @@ Navigate through the interior of a massive malfunctioning machine as **BOLT**, a
 
 ## 📋 Jam Categories
 
-- **Innovation** ⭐ — Overclock mechanic + combo system inside a procedural machine
+- **Innovation** ⭐ — Drones PandaVen mechanic + combo system inside a procedural machine
 - **Theme** ⭐ — You ARE inside a machine, dodging literal machine parts
 - **Gameplay** ⭐ — Fast-paced arcade survival with upgrades and power-ups
 - **Graphics** ⭐ — Neon steampunk aesthetic with particles and visual effects

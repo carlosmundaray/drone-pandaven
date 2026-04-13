@@ -17,7 +17,7 @@ const CONFIG = {
     DRONE_MAX_LIVES: 3,
     DRONE_INVINCIBILITY_TIME: 1.5,
 
-    // Rush Mode (like overclock)
+    // Rush Mode (like Drones PandaVen)
     RUSH_MAX: 100,
     RUSH_GAIN_PER_DELIVERY: 25,
     RUSH_GAIN_PER_PACKAGE: 8,
