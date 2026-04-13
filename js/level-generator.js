@@ -109,6 +109,7 @@ class LevelGenerator {
                 this._genFinishLineChunk(this.nextChunkZ);
                 this.finishLineGenerated = true;
             }
+            this.nextChunkZ -= this.chunkDepth; // MUST advance to prevent infinite loop
             return;
         }
 
