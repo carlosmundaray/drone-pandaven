@@ -237,10 +237,6 @@ class UI {
                 ctx.fillStyle = tick <= 1 ? '#00ff00' : '#FFB800';
                 ctx.fillText(tick <= 0 ? 'GO!' : tick, w/2, h/2);
                 ctx.shadowBlur = 0;
-
-                ctx.font='bold 20px "Rajdhani", sans-serif';
-                ctx.fillStyle='#aaaaaa';
-                ctx.fillText('CARRERA PANDAVEN', w/2, h/2 + 80);
                 ctx.restore();
             }
 

@@ -447,7 +447,6 @@ class Game {
                         this.audio.playPickup();
                         this.particles.emit(gate.x, gate.y, gate.z, 'neon', 15);
                         this.camera.shake(2, 0.1);
-                        this.ui.addNotification(`✓ GATE ${this.playerGatesPassed}`, '#00ffaa', 1.0);
                     }
                 }
 

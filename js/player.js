@@ -281,7 +281,7 @@ class Player {
         const worldMoveX = move.x * right.x + move.y * forward.x;
         const worldMoveZ = move.x * right.z + move.y * forward.z;
 
-        // Vertical
+        // Vertical — Space = ascend, Shift = descend (strong)
         let vertMove = 0;
         if (input.keys['Space']) vertMove += 1;
         if (input.keys['ShiftLeft'] || input.keys['ShiftRight']) vertMove -= 1;
@@ -289,7 +289,7 @@ class Player {
         if (!this.barrelRolling) {
             this.vx += worldMoveX * CONFIG.DRONE_ACCEL * dt;
             this.vz += worldMoveZ * CONFIG.DRONE_ACCEL * dt;
-            this.vy += vertMove * CONFIG.DRONE_ACCEL * 0.7 * dt;
+            this.vy += vertMove * CONFIG.DRONE_ACCEL * 0.9 * dt;
         }
 
         // Friction
@@ -303,8 +303,8 @@ class Player {
             this.vx = (this.vx/hSpd) * this.speed;
             this.vz = (this.vz/hSpd) * this.speed;
         }
-        if (Math.abs(this.vy) > this.speed * 0.6) {
-            this.vy = Math.sign(this.vy) * this.speed * 0.6;
+        if (Math.abs(this.vy) > this.speed * 0.8) {
+            this.vy = Math.sign(this.vy) * this.speed * 0.8;
         }
 
         this.currentSpeed = Math.sqrt(this.vx*this.vx + this.vy*this.vy + this.vz*this.vz);
