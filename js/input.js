@@ -16,13 +16,24 @@ class InputHandler {
         this.pointerLockRequested = false;
 
         // Double-tap detection for barrel roll
-        this._tapTimers = { KeyA:0, KeyD:0 };
+        this._tapTimers = {};
         this._tapThreshold = 0.3; // seconds
+
+        // Dynamic bindings
+        this.bindings = {
+            moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
+            flyUp:'Space', flyDown:'ShiftLeft',
+            shield:'KeyQ', pause:'Escape'
+        };
 
         this._setupKeyboard();
         this._setupMouse();
         this._setupTouch();
         this._setupPointerLock();
+    }
+
+    setBindings(b) {
+        if(b) Object.assign(this.bindings, b);
     }
 
     _setupKeyboard() {
@@ -31,8 +42,9 @@ class InputHandler {
             if (!this.keys[e.code]) {
                 this.keysJustPressed[e.code] = true;
                 // Double-tap detection
-                if (e.code === 'KeyA' || e.code === 'KeyD') {
+                if (e.code === this.bindings.moveLeft || e.code === this.bindings.moveRight) {
                     const now = performance.now() / 1000;
+                    if (!this._tapTimers[e.code]) this._tapTimers[e.code] = 0;
                     if (now - this._tapTimers[e.code] < this._tapThreshold) {
                         this.keysJustPressed[e.code + '_DOUBLE'] = true;
                     }
@@ -76,8 +88,19 @@ class InputHandler {
 
     requestPointerLock(element) {
         if (!this.pointerLocked && element) {
-            element.requestPointerLock();
-            this.pointerLockRequested = true;
+            try {
+                const promise = element.requestPointerLock();
+                if (promise) {
+                    promise.catch(e => {
+                        console.warn('Pointer lock requires a direct user click. Show overlay.', e.message);
+                        document.dispatchEvent(new Event('pointerlockchange'));
+                    });
+                }
+                this.pointerLockRequested = true;
+            } catch (e) {
+                console.warn('Pointer lock error', e);
+                document.dispatchEvent(new Event('pointerlockchange'));
+            }
         }
     }
 
@@ -136,10 +159,10 @@ class InputHandler {
 
     getMovement() {
         let mx=0, my=0;
-        if (this.keys['KeyA'] || this.keys['ArrowLeft'])  mx -= 1;
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) mx += 1;
-        if (this.keys['KeyW'] || this.keys['ArrowUp'])    my += 1;
-        if (this.keys['KeyS'] || this.keys['ArrowDown'])  my -= 1;
+        if (this.keys[this.bindings.moveLeft] || this.keys['ArrowLeft'])  mx -= 1;
+        if (this.keys[this.bindings.moveRight] || this.keys['ArrowRight']) mx += 1;
+        if (this.keys[this.bindings.moveUp] || this.keys['ArrowUp'])    my += 1;
+        if (this.keys[this.bindings.moveDown] || this.keys['ArrowDown'])  my -= 1;
         if (this.virtualJoystick.active && this.virtualJoystick.magnitude > 0.1) {
             mx = this.virtualJoystick.dx * this.virtualJoystick.magnitude;
             my = -this.virtualJoystick.dy * this.virtualJoystick.magnitude;
@@ -162,18 +185,18 @@ class InputHandler {
 
     isBoostPressed() { return !!this.keysJustPressed['KeyF']; }
 
-    isBarrelRollLeft() { return !!this.keysJustPressed['KeyA_DOUBLE']; }
-    isBarrelRollRight() { return !!this.keysJustPressed['KeyD_DOUBLE']; }
+    isBarrelRollLeft() { return !!this.keysJustPressed[this.bindings.moveLeft + '_DOUBLE']; }
+    isBarrelRollRight() { return !!this.keysJustPressed[this.bindings.moveRight + '_DOUBLE']; }
 
-    isEMPPressed() { return !!this.keysJustPressed['KeyQ']; }
+    isEMPPressed() { return !!this.keysJustPressed[this.bindings.shield]; }
     isDropPressed() { return !!this.keysJustPressed['KeyE']; }
 
-    isPausePressed() { return this.keysJustPressed['Escape'] || this.keysJustPressed['KeyP']; }
+    isPausePressed() { return this.keysJustPressed[this.bindings.pause] || this.keysJustPressed['KeyP']; }
     isConfirmPressed() { return this.keysJustPressed['Enter'] || this.keysJustPressed['Space'] || this.mouse.clicked; }
     isKeyJustPressed(code) { return !!this.keysJustPressed[code]; }
 
-    isVerticalUp() { return !!this.keys['Space']; }
-    isVerticalDown() { return !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight']; }
+    isVerticalUp() { return !!this.keys[this.bindings.flyUp]; }
+    isVerticalDown() { return !!this.keys[this.bindings.flyDown]; }
 
     endFrame() {
         this.keysJustPressed = {};

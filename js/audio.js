@@ -9,6 +9,10 @@ class AudioSystem {
         // Engine sound
         this.engineOsc=null; this.engineGain=null; this.engineRunning=false;
         this.engineTargetFreq=80; this.engineTargetGain=0.05;
+        // Race MP3 music
+        this.raceTracks=['musica/pista1.mp3','musica/pista2.mp3'];
+        this.raceAudio=null; this.raceSource=null; this.raceMusicPlaying=false;
+        this.currentTrackIndex=-1;
     }
 
     init() {
@@ -346,4 +350,84 @@ class AudioSystem {
     }
     stopMusic() { this.musicPlaying=false; if(this.musicInterval){clearTimeout(this.musicInterval);this.musicInterval=null;} }
     setMusicTempo(t) { this.musicTempo=t; }
+
+    // --- Race MP3 Music ---
+    startRaceMusic() {
+        if(!this.initialized) return;
+        this.stopMusic(); // Stop procedural music
+        this.stopRaceMusic(); // Stop any previous race music
+        this.raceMusicPlaying=true;
+        // Pick a random starting track
+        this.currentTrackIndex=Math.floor(Math.random()*this.raceTracks.length);
+        this._playNextRaceTrack();
+    }
+
+    _playNextRaceTrack() {
+        if(!this.raceMusicPlaying||!this.initialized) return;
+        try {
+            // Cleanup previous
+            if(this.raceAudio) {
+                this.raceAudio.pause();
+                this.raceAudio.removeAttribute('src');
+                this.raceAudio.load();
+            }
+            if(this.raceSource) {
+                try { this.raceSource.disconnect(); } catch(e){}
+                this.raceSource=null;
+            }
+
+            // Create new audio element
+            this.raceAudio=new Audio(this.raceTracks[this.currentTrackIndex]);
+            this.raceAudio.crossOrigin='anonymous';
+            this.raceAudio.volume=1;
+
+            // Connect to Web Audio graph for volume control
+            this.raceSource=this.ctx.createMediaElementSource(this.raceAudio);
+            this.raceSource.connect(this.musicGain);
+
+            // When track ends, play a random different one
+            this.raceAudio.addEventListener('ended',()=>{
+                if(this.raceTracks.length>1) {
+                    let next;
+                    do { next=Math.floor(Math.random()*this.raceTracks.length); }
+                    while(next===this.currentTrackIndex);
+                    this.currentTrackIndex=next;
+                } else {
+                    this.currentTrackIndex=0;
+                }
+                this._playNextRaceTrack();
+            });
+
+            this.raceAudio.play().catch(e=>console.warn('Race music play failed:',e));
+        } catch(e) {
+            console.warn('Race music error:',e);
+        }
+    }
+
+    stopRaceMusic() {
+        this.raceMusicPlaying=false;
+        if(this.raceAudio) {
+            try {
+                this.raceAudio.pause();
+                this.raceAudio.currentTime=0;
+            } catch(e){}
+            this.raceAudio=null;
+        }
+        if(this.raceSource) {
+            try { this.raceSource.disconnect(); } catch(e){}
+            this.raceSource=null;
+        }
+    }
+
+    pauseRaceMusic() {
+        if(this.raceAudio&&this.raceMusicPlaying) {
+            try { this.raceAudio.pause(); } catch(e){}
+        }
+    }
+
+    resumeRaceMusic() {
+        if(this.raceAudio&&this.raceMusicPlaying) {
+            try { this.raceAudio.play().catch(e=>{}); } catch(e){}
+        }
+    }
 }

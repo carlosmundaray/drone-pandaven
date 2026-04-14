@@ -223,10 +223,13 @@ class AIRacer {
         // Spin rotors fast
         this.rotors.forEach(r => r.rotation.y += dt * 40);
 
-        // Find current target gate
+        // Save previous Z for crossing detection
+        const prevZ = this.z;
+
+        // Find current target gate (gates are sorted by Z descending = encounter order)
         let targetGate = null;
-        if (gates && this.currentGateIndex < gates.length) {
-            targetGate = gates[this.currentGateIndex];
+        if (gates && this.gatesPassed < gates.length) {
+            targetGate = gates[this.gatesPassed];
         }
 
         // Steer toward next gate
@@ -237,12 +240,6 @@ class AIRacer {
 
             this.vx = lerp(this.vx, clamp(dx * 1.5, -80, 80), dt * 4);
             this.vy = lerp(this.vy, clamp(dy * 1.5, -60, 60), dt * 3);
-
-            // Check if passed through gate
-            if (Math.abs(dz) < 15 && Math.abs(dx) < targetGate.radius + 5 && Math.abs(dy) < targetGate.radius + 5) {
-                this.currentGateIndex++;
-                this.gatesPassed++;
-            }
         } else {
             // Past all gates — head to finish
             this.vx = lerp(this.vx, 0, dt * 2);
@@ -267,6 +264,19 @@ class AIRacer {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
         this.z -= this.currentSpeed * dt;
+
+        // Gate crossing detection (after movement, using Z-crossing like player)
+        if (targetGate) {
+            const gz = targetGate.z;
+            if ((prevZ > gz && this.z <= gz) || (prevZ < gz && this.z >= gz)) {
+                const dx = this.x - targetGate.x;
+                const dy = this.y - targetGate.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < targetGate.radius + 10) {
+                    this.gatesPassed++;
+                }
+            }
+        }
 
         // Clamp altitude
         this.y = clamp(this.y, 8, 200);

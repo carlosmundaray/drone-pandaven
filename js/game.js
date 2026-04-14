@@ -45,6 +45,22 @@ class Game {
         this.playerUpgrades=loadData('upgrades',{speed:0,battery:0,magnet:0,rush:0,boost:0});
         this.lastTime=0;
 
+        // Key bindings
+        this.keyBindings=loadData('keybindings',{
+            moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
+            flyUp:'Space', flyDown:'ShiftLeft',
+            shield:'KeyQ', pause:'Escape'
+        });
+        this.input.setBindings(this.keyBindings);
+        // Audio settings
+        this.audioSettings=loadData('audiosettings',{
+            MASTER_VOLUME:CONFIG.MASTER_VOLUME,
+            SFX_VOLUME:CONFIG.SFX_VOLUME,
+            MUSIC_VOLUME:CONFIG.MUSIC_VOLUME,
+            sensitivity:CONFIG.MOUSE_SENSITIVITY
+        });
+        this._applyAudioSettings();
+
         // Rain timer
         this.rainTimer=0;
 
@@ -162,6 +178,7 @@ class Game {
             case 'gameover':this._updateGameOver(dt);break;
             case 'shop':this._updateShop(dt);break;
             case 'tutorial':this._updateTutorial(dt);break;
+            case 'settings':this._updateSettings(dt);break;
         }
         this.camera.update(dt, this.player?this.player.currentSpeed:0);
         if(this.particles) this.particles.update(dt);
@@ -214,6 +231,7 @@ class Game {
                 });break;
             case 'shop':this.ui.renderShop(ctx,w,h,this.playerUpgrades,this.coins);break;
             case 'tutorial':this.ui.renderTutorial(ctx,w,h);break;
+            case 'settings':this.ui.renderSettings(ctx,w,h,this.keyBindings,this.audioSettings);break;
         }
     }
 
@@ -240,6 +258,7 @@ class Game {
                 case 1:this.state='trackSelect';this.ui.selectedTrack=0;break;
                 case 2:this.state='shop';this.ui.selectedShopItem=0;break;
                 case 3:this.state='tutorial';break;
+                case 4:this.state='settings';this.ui.selectedSettingsItem=0;this.ui.settingsWaitingKey=false;break;
             }
         }
     }
@@ -337,7 +356,8 @@ class Game {
         this.camera.pitch=-0.05;
 
         this.levelGen.generateInitialChunks(1800);
-        this.audio.startMusic();
+        if(this.gameMode==='racing') this.audio.startRaceMusic();
+        else this.audio.startMusic();
         this.audio.startEngine();
         this.state='playing';
         this.ui.selectedMenuItem=0;
@@ -350,7 +370,9 @@ class Game {
         // Pause
         if(this.input.isPausePressed()){
             this.state='paused';this.ui.selectedMenuItem=0;
-            this.audio.stopMusic();this.audio.stopEngine();
+            if(this.gameMode==='racing') this.audio.pauseRaceMusic();
+            else this.audio.stopMusic();
+            this.audio.stopEngine();
             this.input.exitPointerLock();
             return;
         }
@@ -363,8 +385,8 @@ class Game {
         if(this.gameMode === 'racing' && this.preRaceTimer > 0) {
             this.preRaceTimer -= dt;
             if(this.preRaceTimer <= 0) {
-                this.audio.playPickup(); // "GO!" sound
-                this.ui.addNotification('¡GO!', COLORS.DELIVERY_GREEN, 1.5, 40);
+                this.audio.playPickup();
+                this.ui.addNotification(t('notif_go'), COLORS.DELIVERY_GREEN, 1.5, 40);
             }
         }
 
@@ -396,7 +418,7 @@ class Game {
                     this.audio.playEMPActivate();
                     this.particles.emit(this.player.x, this.player.y, this.player.z, 'emp_burst', 20);
                     this.camera.shake(3,0.2);
-                    this.ui.addNotification('🛡 ESCUDO EMP ACTIVADO',COLORS.EMP_CYAN,1.5);
+                    this.ui.addNotification(t('notif_shield_activated'),COLORS.EMP_CYAN,1.5);
                 }
             }
 
@@ -473,10 +495,11 @@ class Game {
 
             // --- Racing Logic ---
             if(this.gameMode === 'racing') {
-                // Collect all race gates from obstacles
+                // Collect all race gates from obstacles, sorted by Z (descending = order of encounter)
                 const raceGates = obstacles.filter(o => o.type === 'race_gate');
+                raceGates.sort((a,b) => b.z - a.z); // first gates have higher Z
 
-                // Update AI Racers — pass gates for pathfinding
+                // Update AI Racers — pass sorted gates for pathfinding
                 for(const racer of this.aiRacers) {
                     racer.update((this.preRaceTimer > 0 ? 0 : dt), raceGates);
                 }
@@ -492,15 +515,12 @@ class Game {
                     }
                 }
 
-                // Calculate Position based on gates passed + Z progress
+                // Calculate Position — primary: Z progress (lower Z = further ahead)
                 let allRacers = [
-                    { isPlayer: true, gates: this.playerGatesPassed || 0, z: this.player.z },
-                    ...this.aiRacers.map(r => ({ isPlayer: false, gates: r.gatesPassed, z: r.z }))
+                    { isPlayer: true, z: this.player.z },
+                    ...this.aiRacers.map(r => ({ isPlayer: false, z: r.z }))
                 ];
-                allRacers.sort((a,b) => {
-                    if(b.gates !== a.gates) return b.gates - a.gates; // more gates = better
-                    return a.z - b.z; // lower Z = further ahead
-                });
+                allRacers.sort((a,b) => a.z - b.z); // lowest Z = 1st place
                 this.racePosition = allRacers.findIndex(r => r.isPlayer) + 1;
                 this.totalGates = this.levelGen.raceGateCounter || 0;
 
@@ -508,7 +528,7 @@ class Game {
                 if(this.player.z <= -15000 && !this.raceFinished) {
                     this.raceFinished = true;
                     this.ui.addNotification(
-                        this.racePosition === 1 ? '🏆 ¡VICTORIA!' : `POSICIÓN ${this.racePosition}°`,
+                        this.racePosition === 1 ? t('notif_victory') : `${t('notif_position')} ${this.racePosition}°`,
                         this.racePosition === 1 ? '#FFD700' : '#ff4444', 4.0
                     );
                     setTimeout(() => {
@@ -604,7 +624,7 @@ class Game {
                             this.particles.emit(o.x,o.y,o.z,'explosion',15);
                             this.audio.playDamage();
                             this._addScore(100);
-                            this.ui.addNotification('💥 ¡ENEMIGO DESTRUIDO!',COLORS.DANGER_RED,1);
+                            this.ui.addNotification(t('notif_enemy_destroyed'),COLORS.DANGER_RED,1);
                             // Remove enemy
                             if(o.dispose) o.dispose();
                             o.active=false;
@@ -633,7 +653,7 @@ class Game {
                         this.particles.emit(c.x,c.y,c.z,'pickup',10);
                         this.rushMeter=Math.min(CONFIG.RUSH_MAX,this.rushMeter+CONFIG.RUSH_GAIN_PER_PACKAGE);
                         this._addScore(CONFIG.PACKAGE_SCORE);
-                        this.ui.addNotification('📦 ¡PAQUETE RECOGIDO!',COLORS.DRONE_YELLOW,1.5);
+                        this.ui.addNotification(t('notif_package_picked'),COLORS.DRONE_YELLOW,1.5);
                     }
                 } else if(c instanceof DeliveryPad) {
                     if(c.checkDelivery(this.player)) {
@@ -643,7 +663,7 @@ class Game {
                         this.rushMeter=Math.min(CONFIG.RUSH_MAX,this.rushMeter+CONFIG.RUSH_GAIN_PER_DELIVERY);
                         this._addScore(CONFIG.DELIVERY_SCORE*(1+this.deliveries*0.1));
                         this._addCombo();this.camera.shake(4,0.2);
-                        this.ui.addNotification(`🎯 ¡ENTREGA #${this.deliveries}!`,COLORS.DELIVERY_GREEN,2);
+                        this.ui.addNotification(`${t('notif_delivery')} #${this.deliveries}!`,COLORS.DELIVERY_GREEN,2);
                     }
                 } else if(c instanceof Coin) {
                     c.getMagnetPulled(this.player,dt);
@@ -659,8 +679,8 @@ class Game {
                         c.active=false;c.apply(this.player,this);
                         this.audio.playPickup();
                         this.particles.emit(c.x,c.y,c.z,'pickup',10);
-                        const names={shield:'🛡 ESCUDO',speed:'⚡ VELOCIDAD',magnet:'🧲 IMÁN',timeslow:'⏳ CÁMARA LENTA'};
-                        this.ui.addNotification(names[c.powerType]||'POWER UP',COLORS.NEON_CYAN,2);
+                        const names={shield:t('powerup_shield'),speed:t('powerup_speed'),magnet:t('powerup_magnet'),timeslow:t('powerup_timeslow')};
+                        this.ui.addNotification(names[c.powerType]||t('powerup_default'),COLORS.NEON_CYAN,2);
                         c.dispose();
                     }
                 }
@@ -672,7 +692,7 @@ class Game {
                 this.audio.playRushActivate();
                 this.camera.setZoom(1.5);
                 this.camera.shake(5,0.3);
-                this.ui.addNotification('⚡ ¡RUSH MODE! ⚡',COLORS.RUSH_ORANGE,2);
+                this.ui.addNotification(t('notif_rush_mode'),COLORS.RUSH_ORANGE,2);
                 this.audio.setMusicTempo(1.3);
             }
             if(this.rushActive) {
@@ -780,7 +800,7 @@ class Game {
             const angle = Math.atan2(rx, rz) - this.camera.yaw;
             this.ui.setWaypoint({
                 angle, distance: nearestPadDist,
-                label: '🏁 ENTREGA', color: COLORS.DELIVERY_GREEN,
+                label: t('wp_delivery'), color: COLORS.DELIVERY_GREEN,
                 wx: nearestPad.x, wy: nearestPad.y, wz: nearestPad.z
             });
         } else if(nearestPkg) {
@@ -788,7 +808,7 @@ class Game {
             const angle = Math.atan2(rx, rz) - this.camera.yaw;
             this.ui.setWaypoint({
                 angle, distance: nearestPkgDist,
-                label: '📦 PAQUETE', color: COLORS.DRONE_YELLOW,
+                label: t('wp_package'), color: COLORS.DRONE_YELLOW,
                 wx: nearestPkg.x, wy: nearestPkg.y, wz: nearestPkg.z
             });
         } else {
@@ -834,7 +854,7 @@ class Game {
 
     _gameOver() {
         this.state='gameover';this.ui.selectedMenuItem=0;
-        this.audio.stopMusic();this.audio.stopEngine();this.audio.playGameOver();
+        this.audio.stopMusic();this.audio.stopRaceMusic();this.audio.stopEngine();this.audio.playGameOver();
         this.input.exitPointerLock();
         this.score=Math.floor(this.score);
         const prev=loadData('highscore',0);
@@ -847,7 +867,9 @@ class Game {
     _updatePaused(dt) {
         if(this.input.isPausePressed()){
             this.state='playing';
-            this.audio.startMusic();this.audio.startEngine();
+            if(this.gameMode==='racing') this.audio.resumeRaceMusic();
+            else this.audio.startMusic();
+            this.audio.startEngine();
             this.input.requestPointerLock(this.renderer.domElement);
             return;
         }
@@ -861,7 +883,10 @@ class Game {
             this.audio.playMenuConfirm();
             switch(this.ui.selectedMenuItem){
                 case 0:
-                    this.state='playing';this.audio.startMusic();this.audio.startEngine();
+                    this.state='playing';
+                    if(this.gameMode==='racing') this.audio.resumeRaceMusic();
+                    else this.audio.startMusic();
+                    this.audio.startEngine();
                     this.input.requestPointerLock(this.renderer.domElement);
                     break;
                 case 1:this._startGame();break;
@@ -912,7 +937,7 @@ class Game {
                 this.coins-=cost;this.playerUpgrades[key]=lv+1;
                 saveData('coins',this.coins);saveData('upgrades',this.playerUpgrades);
                 this.audio.playMenuConfirm();
-                this.ui.addNotification(`✅ ${upg.name} nivel ${lv+1}`,COLORS.DELIVERY_GREEN,2);
+                this.ui.addNotification(`✅ ${t('upg_'+key)} ${t('notif_upgrade_level')} ${lv+1}`,COLORS.DELIVERY_GREEN,2);
             } else this.audio.playDamage();
         }
         if(this.input.isPausePressed()){
@@ -930,10 +955,140 @@ class Game {
     _goToMenu() {
         if(this.player){this.player.dispose();this.player=null;}
         this.levelGen.reset();this.particles.clear();
-        this.audio.stopMusic();this.audio.stopEngine();
+        this.audio.stopMusic();this.audio.stopRaceMusic();this.audio.stopEngine();
         this.input.exitPointerLock();
         this.camera.setFPS(false);
         this.state='menu';this.ui.selectedMenuItem=0;
         this._setupMenuScene();
+    }
+
+    _updateSettings(dt) {
+        const selectables = this.ui.getSelectableSettingsItems();
+        const total = selectables.length;
+
+        // Key rebinding mode — capture next key press
+        if(this.ui.settingsWaitingKey) {
+            const pressed = Object.keys(this.input.keysJustPressed);
+            if(pressed.length > 0) {
+                const code = pressed[0];
+                if(code === 'Escape') {
+                    // Cancel rebinding
+                    this.ui.settingsWaitingKey = false;
+                    this.audio.playMenuSelect();
+                } else {
+                    const item = selectables[this.ui.selectedSettingsItem];
+                    if(item && item.action) {
+                        this.keyBindings[item.action] = code;
+                        this.input.setBindings(this.keyBindings);
+                        saveData('keybindings', this.keyBindings);
+                        this.ui.settingsWaitingKey = false;
+                        this.audio.playMenuConfirm();
+                    }
+                }
+                return;
+            }
+            return;
+        }
+
+        // Navigation
+        if(this.input.isKeyJustPressed('ArrowUp') || this.input.isKeyJustPressed('KeyW')) {
+            this.ui.selectedSettingsItem = (this.ui.selectedSettingsItem - 1 + total) % total;
+            this.audio.playMenuSelect();
+        }
+        if(this.input.isKeyJustPressed('ArrowDown') || this.input.isKeyJustPressed('KeyS')) {
+            this.ui.selectedSettingsItem = (this.ui.selectedSettingsItem + 1) % total;
+            this.audio.playMenuSelect();
+        }
+
+        const currentItem = selectables[this.ui.selectedSettingsItem];
+        if(!currentItem) return;
+
+        // Slider adjustment with left/right arrows
+        if(currentItem.type === 'slider') {
+            let changed = false;
+            if(this.input.isKeyJustPressed('ArrowLeft')) {
+                if(currentItem.configKey === 'MOUSE_SENSITIVITY') {
+                    this.audioSettings.sensitivity = Math.max(currentItem.min, 
+                        (this.audioSettings.sensitivity || CONFIG.MOUSE_SENSITIVITY) - currentItem.step);
+                } else {
+                    const cur = this.audioSettings[currentItem.configKey] !== undefined ? 
+                        this.audioSettings[currentItem.configKey] : CONFIG[currentItem.configKey];
+                    this.audioSettings[currentItem.configKey] = Math.max(currentItem.min, cur - currentItem.step);
+                }
+                changed = true;
+            }
+            if(this.input.isKeyJustPressed('ArrowRight')) {
+                if(currentItem.configKey === 'MOUSE_SENSITIVITY') {
+                    this.audioSettings.sensitivity = Math.min(currentItem.max,
+                        (this.audioSettings.sensitivity || CONFIG.MOUSE_SENSITIVITY) + currentItem.step);
+                } else {
+                    const cur = this.audioSettings[currentItem.configKey] !== undefined ?
+                        this.audioSettings[currentItem.configKey] : CONFIG[currentItem.configKey];
+                    this.audioSettings[currentItem.configKey] = Math.min(currentItem.max, cur + currentItem.step);
+                }
+                changed = true;
+            }
+            if(changed) {
+                this._applyAudioSettings();
+                saveData('audiosettings', this.audioSettings);
+                this.audio.playMenuSelect();
+            }
+        }
+
+        // Key rebinding — Enter to start
+        if(currentItem.type === 'keybind') {
+            if(this.input.isKeyJustPressed('Enter')) {
+                this.ui.settingsWaitingKey = true;
+                this.audio.playMenuSelect();
+                return;
+            }
+        }
+
+        // Actions — Enter to execute
+        if(currentItem.type === 'action') {
+            if(this.input.isKeyJustPressed('Enter') || this.input.isKeyJustPressed('Space')) {
+                if(currentItem.action === 'toggleLang') {
+                    toggleLang();
+                    this.audio.playMenuConfirm();
+                } else if(currentItem.action === 'reset') {
+                    // Reset all settings to defaults
+                    this.keyBindings = {
+                        moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
+                        flyUp:'Space', flyDown:'ShiftLeft',
+                        shield:'KeyQ', pause:'Escape'
+                    };
+                    this.input.setBindings(this.keyBindings);
+                    this.audioSettings = {
+                        MASTER_VOLUME: 0.3, SFX_VOLUME: 0.5, MUSIC_VOLUME: 0.25,
+                        sensitivity: 0.0015
+                    };
+                    saveData('keybindings', this.keyBindings);
+                    saveData('audiosettings', this.audioSettings);
+                    this._applyAudioSettings();
+                    this.audio.playMenuConfirm();
+                    this.ui.addNotification(t('settings_reset'), COLORS.DRONE_YELLOW, 1.5);
+                }
+            }
+        }
+
+        // Back to menu
+        if(this.input.isKeyJustPressed('Escape')) {
+            this.state = 'menu';
+            this.ui.selectedMenuItem = 0;
+        }
+    }
+
+    _applyAudioSettings() {
+        // Apply volumes to CONFIG and live audio
+        CONFIG.MASTER_VOLUME = this.audioSettings.MASTER_VOLUME;
+        CONFIG.SFX_VOLUME = this.audioSettings.SFX_VOLUME;
+        CONFIG.MUSIC_VOLUME = this.audioSettings.MUSIC_VOLUME;
+        CONFIG.MOUSE_SENSITIVITY = this.audioSettings.sensitivity || CONFIG.MOUSE_SENSITIVITY;
+
+        if(this.audio && this.audio.initialized) {
+            if(this.audio.masterGain) this.audio.masterGain.gain.value = this.audio.muted ? 0 : CONFIG.MASTER_VOLUME;
+            if(this.audio.sfxGain) this.audio.sfxGain.gain.value = CONFIG.SFX_VOLUME;
+            if(this.audio.musicGain) this.audio.musicGain.gain.value = CONFIG.MUSIC_VOLUME;
+        }
     }
 }

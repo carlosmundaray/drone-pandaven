@@ -64,7 +64,7 @@ class UI {
         this.rushFlash=0;
         this.scanlineOffset=0;
         this.selectedMenuItem=0;
-        this.menuItems=['SUPERVIVENCIA','CARRERA PANDAVEN','MEJORAS','CÓMO JUGAR'];
+        this.menuItems=[t('menu_survival'),t('menu_racing'),t('menu_upgrades'),t('menu_tutorial'),t('menu_settings')];
         this.menuAnimTimer=0;
         this.selectedShopItem=0;
         this.shopItems=Object.keys(CONFIG.UPGRADES);
@@ -79,6 +79,10 @@ class UI {
         this.waypoint=null;
         // Track select
         this.selectedTrack=0;
+        // Settings
+        this.selectedSettingsItem=0;
+        this.settingsWaitingKey=false;
+        this.settingsItems=this._buildSettingsItems();
     }
 
     getTrackWorlds() { return RACE_WORLDS; }
@@ -142,7 +146,7 @@ class UI {
         // Deliveries
         ctx.font='bold 13px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.DELIVERY_GREEN;
-        ctx.fillText(`📦 ${deliveries} ENTREGAS`, 20, 14);
+        ctx.fillText(`📦 ${deliveries} ${t('hud_deliveries')}`, 20, 14);
 
         // Combo
         if(combo>1) {
@@ -181,7 +185,7 @@ class UI {
             ctx.fillStyle=COLORS.DELIVERY_GREEN;
             ctx.font='bold 14px "Rajdhani", sans-serif';
             ctx.textAlign='center';
-            ctx.fillText('📦 PAQUETE RECOGIDO — BUSCA EL PAD DE ENTREGA ⬇', w/2, 73);
+            ctx.fillText(t('hud_package_hint'), w/2, 73);
             ctx.restore();
         }
 
@@ -195,12 +199,12 @@ class UI {
         if(barrelRollCD > 0) {
             const bp=1-(barrelRollCD/CONFIG.BARREL_ROLL_COOLDOWN);
             ctx.fillStyle=COLORS.UI_DIM; ctx.font='10px "Rajdhani"'; ctx.textAlign='left';
-            ctx.fillText('BARREL ROLL', 20, h-55);
+            ctx.fillText(t('hud_barrel_roll'), 20, h-55);
             ctx.fillStyle='#222'; ctx.fillRect(20,h-48,60,4);
             ctx.fillStyle=COLORS.NEON_CYAN; ctx.fillRect(20,h-48,60*bp,4);
         } else {
             ctx.fillStyle=COLORS.NEON_CYAN; ctx.font='10px "Rajdhani"'; ctx.textAlign='left';
-            ctx.fillText('⟵⟵ A/D ROLL ⟶⟶', 20, h-48);
+            ctx.fillText(t('hud_barrel_roll_hint'), 20, h-48);
         }
 
         // --- RACING HUD (FPV Style) ---
@@ -243,11 +247,11 @@ class UI {
             ctx.font='italic bold 52px "Rajdhani", sans-serif';
             ctx.fillStyle = posColors[Math.min(racePosition-1, 4)];
             ctx.textAlign='right';
-            const suffix = racePosition===1?'er':racePosition===2?'do':racePosition===3?'ro':'to';
+            const suffix = racePosition===1?t('race_suffix_1'):racePosition===2?t('race_suffix_2'):racePosition===3?t('race_suffix_3'):t('race_suffix_other');
             ctx.fillText(`${racePosition}${suffix}`, w-25, 85);
             ctx.font='18px "Rajdhani", sans-serif';
             ctx.fillStyle='#aaaaaa';
-            ctx.fillText('/ 5 PILOTOS', w-25, 108);
+            ctx.fillText(`/ 5 ${t('race_pilots')}`, w-25, 108);
             ctx.restore();
 
             // === GATE COUNTER (top center) ===
@@ -255,7 +259,7 @@ class UI {
             ctx.font='bold 16px "Rajdhani", sans-serif';
             ctx.fillStyle='#00ffaa';
             ctx.textAlign='center';
-            ctx.fillText(`⬡ GATES: ${playerGatesPassed}`, w/2, 85);
+            ctx.fillText(`⬡ ${t('race_gates')}: ${playerGatesPassed}`, w/2, 85);
             // Gate progress bar
             const barW = 200, barH = 6;
             const barX = w/2 - barW/2, barY = 92;
@@ -312,16 +316,16 @@ class UI {
                 ctx.shadowColor = racePosition === 1 ? '#FFD700' : '#00ffaa';
                 ctx.shadowBlur = 30;
                 ctx.fillStyle = racePosition === 1 ? '#FFD700' : '#ffffff';
-                ctx.fillText(racePosition === 1 ? '🏆 ¡VICTORIA!' : 'FIN DE CARRERA', w/2, h/2 - 40);
+                ctx.fillText(racePosition === 1 ? t('race_victory') : t('race_finish'), w/2, h/2 - 40);
                 ctx.shadowBlur = 0;
 
                 ctx.font='bold 32px "Rajdhani", sans-serif';
                 ctx.fillStyle = posColors[Math.min(racePosition-1, 4)];
-                ctx.fillText(`Posición Final: ${racePosition}° de 5`, w/2, h/2 + 30);
+                ctx.fillText(`${t('race_final_pos')}: ${racePosition}° ${t('race_of')} 5`, w/2, h/2 + 30);
 
                 ctx.font='18px "Rajdhani", sans-serif';
                 ctx.fillStyle='#aaaaaa';
-                ctx.fillText(`Gates: ${playerGatesPassed} | Tiempo: ${rMins||0}:${(rSecs||0).toString().padStart(2,'0')}`, w/2, h/2 + 70);
+                ctx.fillText(`${t('race_gates')}: ${playerGatesPassed} | ${t('go_time')}: ${rMins||0}:${(rSecs||0).toString().padStart(2,'0')}`, w/2, h/2 + 70);
                 ctx.restore();
             }
         }
@@ -478,19 +482,20 @@ class UI {
 
     _renderLeftPanel(ctx, w, h, speed, altitude, lives, maxLives) {
         const px=15, py=h*0.35;
+        const panelW=130, panelH=130;
 
         // Panel background
         ctx.fillStyle='rgba(5,8,16,0.5)';
-        ctx.fillRect(px, py, 110, 120);
+        ctx.fillRect(px, py, panelW, panelH);
         ctx.strokeStyle=COLORS.COCKPIT_HUD_DIM;
         ctx.lineWidth=0.5;
-        ctx.strokeRect(px, py, 110, 120);
+        ctx.strokeRect(px, py, panelW, panelH);
 
         // Speed
         ctx.font='9px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.COCKPIT_HUD_DIM;
         ctx.textAlign='left';
-        ctx.fillText('VEL', px+8, py+16);
+        ctx.fillText(t('hud_vel'), px+8, py+16);
         ctx.font='bold 20px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.COCKPIT_HUD;
         ctx.fillText(Math.floor(speed||0), px+8, py+38);
@@ -501,22 +506,26 @@ class UI {
         // Altitude
         ctx.font='9px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.COCKPIT_HUD_DIM;
-        ctx.fillText('ALT', px+8, py+56);
+        ctx.fillText(t('hud_alt'), px+8, py+56);
         ctx.font='bold 16px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.COCKPIT_HUD;
         ctx.fillText(Math.floor(altitude||0)+'m', px+8, py+74);
 
-        // Battery (lives)
+        // Battery (lives) — auto-fit bars to panel width
         ctx.font='9px "Rajdhani", sans-serif';
         ctx.fillStyle=COLORS.COCKPIT_HUD_DIM;
-        ctx.fillText('BATERÍA', px+8, py+92);
+        ctx.fillText(t('hud_battery'), px+8, py+92);
+        const maxBarW = panelW - 20;
+        const gap = 2;
+        const barW = Math.min(18, (maxBarW - gap*(maxLives-1)) / maxLives);
+        const step = barW + gap;
         for(let i=0;i<maxLives;i++) {
-            const bx=px+8+i*22;
+            const bx=px+8+i*step;
             ctx.fillStyle=i<lives?COLORS.DRONE_YELLOW:'#222';
-            ctx.fillRect(bx, py+98, 18, 8);
+            ctx.fillRect(bx, py+98, barW, 8);
             ctx.strokeStyle=i<lives?COLORS.DRONE_ACCENT:'#333';
             ctx.lineWidth=0.5;
-            ctx.strokeRect(bx, py+98, 18, 8);
+            ctx.strokeRect(bx, py+98, barW, 8);
         }
     }
 
@@ -545,7 +554,7 @@ class UI {
         ctx.font='9px "Rajdhani", sans-serif';
         ctx.fillStyle=rushActive?COLORS.RUSH_YELLOW:COLORS.COCKPIT_HUD_DIM;
         ctx.textAlign='center';
-        ctx.fillText(rushActive?'⚡ RUSH MODE ⚡':'RUSH', cx, mY-5);
+        ctx.fillText(rushActive?t('hud_rush_mode'):t('hud_rush'), cx, mY-5);
     }
 
     _renderEMPIndicator(ctx, w, h, active, available) {
@@ -554,17 +563,17 @@ class UI {
         ctx.textAlign='left';
         if(active) {
             ctx.fillStyle=COLORS.EMP_CYAN;
-            ctx.fillText('🛡 ESCUDO ACTIVO', px, py);
+            ctx.fillText(t('hud_shield_active'), px, py);
             // Pulsing bar
             const ba=Math.sin(this.menuAnimTimer*6)*0.3+0.7;
             ctx.fillStyle=rgbaString(COLORS.EMP_CYAN,ba);
             ctx.fillRect(px,py+4,80,3);
         } else if(available) {
             ctx.fillStyle=COLORS.COCKPIT_HUD;
-            ctx.fillText('[Q] ESCUDO EMP', px, py);
+            ctx.fillText(t('hud_shield_ready'), px, py);
         } else {
             ctx.fillStyle=COLORS.UI_DIM;
-            ctx.fillText('[Q] ESCUDO — SIN RUSH', px, py);
+            ctx.fillText(t('hud_shield_no_rush'), px, py);
         }
     }
 
@@ -583,7 +592,7 @@ class UI {
         ctx.font='8px "Rajdhani"';
         ctx.fillStyle=COLORS.COCKPIT_HUD_DIM;
         ctx.textAlign='left';
-        ctx.fillText('RADAR', mx+4, my+10);
+        ctx.fillText(t('hud_radar'), mx+4, my+10);
 
         const centerX=mx+size/2, centerY=my+size/2;
         const scale=0.08;
@@ -661,43 +670,53 @@ class UI {
     renderMainMenu(ctx, w, h) {
         ctx.fillStyle='rgba(10,10,26,0.72)';
         ctx.fillRect(0,0,w,h);
+        const mobile = w < 600;
         const ty=h*0.18;
         ctx.save();
-        ctx.font='bold 18px "Rajdhani", sans-serif';
+        ctx.font=`bold ${mobile?14:18}px "Rajdhani", sans-serif`;
         ctx.textAlign='center';
         ctx.fillStyle='#667788';
         ctx.fillText('🐼 DRONES', w/2, ty-10);
         ctx.shadowColor='#FFB800';
         ctx.shadowBlur=30;
-        ctx.font='bold 64px "Orbitron", monospace';
+        ctx.font=`bold ${mobile?36:64}px "Orbitron", monospace`;
         ctx.fillStyle='#FFB800';
         ctx.fillText('PANDAVEN', w/2, ty+45);
         ctx.shadowBlur=0;
         ctx.restore();
-        ctx.font='600 16px "Rajdhani", sans-serif';
+        ctx.font=`600 ${mobile?12:16}px "Rajdhani", sans-serif`;
         ctx.fillStyle='#889';
         ctx.textAlign='center';
-        ctx.fillText('ENTREGAS RÁPIDAS — PRIMERA PERSONA', w/2, ty+72);
+        ctx.fillText(t('menu_subtitle'), w/2, ty+72);
 
-        this.menuItems=['SUPERVIVENCIA','CARRERA PANDAVEN','MEJORAS','CÓMO JUGAR'];
-        const startY=h*0.5;
+        this.menuItems=[t('menu_survival'),t('menu_racing'),t('menu_upgrades'),t('menu_tutorial'),t('menu_settings')];
+        const itemSpacing = mobile ? 40 : 55;
+        const startY = mobile ? h*0.42 : h*0.5;
         this.menuItems.forEach((item,i)=>{
-            const y=startY+i*55;
+            const y=startY+i*itemSpacing;
             const sel=i===this.selectedMenuItem;
             const bounce=sel?Math.sin(this.menuAnimTimer*4)*3:0;
-            if(sel){ ctx.fillStyle=rgbaString(COLORS.DRONE_YELLOW,0.1); ctx.fillRect(w/2-140,y-18,280,36); }
-            ctx.font=`${sel?'bold':'600'} ${sel?22:18}px "Rajdhani", sans-serif`;
+            const btnW = Math.min(280, w-40);
+            if(sel){ ctx.fillStyle=rgbaString(COLORS.DRONE_YELLOW,0.1); ctx.fillRect(w/2-btnW/2,y-18,btnW,36); }
+            ctx.font=`${sel?'bold':'600'} ${sel?(mobile?18:22):(mobile?15:18)}px "Rajdhani", sans-serif`;
             ctx.fillStyle=sel?COLORS.DRONE_YELLOW:COLORS.UI_DIM;
             ctx.textAlign='center';
             ctx.fillText(item, w/2, y+6+bounce);
-            if(sel){ ctx.font='16px "Rajdhani"'; ctx.fillText('▸', w/2-120, y+6); ctx.fillText('◂', w/2+115, y+6); }
+            if(sel){ ctx.font=`${mobile?13:16}px "Rajdhani"`; ctx.fillText('▸', w/2-btnW/2+10, y+6); ctx.fillText('◂', w/2+btnW/2-10, y+6); }
         });
         const hs=loadData('highscore',0);
-        if(hs>0){ ctx.font='bold 14px "Rajdhani", sans-serif'; ctx.fillStyle=COLORS.GOLD; ctx.fillText(`RÉCORD: ${hs.toLocaleString()}`, w/2, h*0.84); }
-        ctx.font='12px "Rajdhani", sans-serif'; ctx.fillStyle='#445';
-        ctx.fillText('WASD: Mover  •  Ratón: Mirar  •  Q: Escudo  •  ESC: Pausa', w/2, h-30);
-        ctx.font='10px "Rajdhani", sans-serif'; ctx.fillStyle=rgbaString('#667788',0.4);
-        ctx.fillText('DRONES PANDAVEN 3D — Primera Persona Inmersivo', w/2, h-12);
+        if(hs>0){ 
+            ctx.save();
+            ctx.textAlign='right';
+            ctx.font='bold 17px "Rajdhani", sans-serif'; 
+            ctx.fillStyle=COLORS.GOLD; 
+            ctx.fillText(`${t('menu_record')}: ${hs.toLocaleString()}`, w - 20, 30); 
+            ctx.restore();
+        }
+        ctx.font=`${mobile?10:12}px "Rajdhani", sans-serif`; ctx.fillStyle='#445';
+        ctx.fillText(t('menu_controls'), w/2, h-30);
+        ctx.font=`${mobile?8:10}px "Rajdhani", sans-serif`; ctx.fillStyle=rgbaString('#667788',0.4);
+        ctx.fillText(t('menu_footer'), w/2, h-12);
         this._scanlines(ctx,w,h,0.03);
     }
 
@@ -706,25 +725,26 @@ class UI {
         ctx.fillRect(0,0,w,h);
 
         // Title
+        const mobile = w < 600;
         ctx.save();
-        ctx.font='bold 36px "Orbitron", monospace';
+        ctx.font=`bold ${mobile?24:36}px "Orbitron", monospace`;
         ctx.textAlign='center';
         ctx.shadowColor='#FFB800';
         ctx.shadowBlur=20;
         ctx.fillStyle='#FFB800';
-        ctx.fillText('SELECCIONAR PISTA', w/2, h*0.12);
+        ctx.fillText(t('race_select_title'), w/2, h*0.12);
         ctx.shadowBlur=0;
         ctx.restore();
 
-        ctx.font='14px "Rajdhani", sans-serif';
+        ctx.font=`${mobile?11:14}px "Rajdhani", sans-serif`;
         ctx.fillStyle='#667788';
         ctx.textAlign='center';
-        ctx.fillText('CARRERA PANDAVEN — ELIGE TU MUNDO', w/2, h*0.12 + 30);
+        ctx.fillText(t('race_select_subtitle'), w/2, h*0.12 + 30);
 
         const tracks = RACE_WORLDS;
-        const cardW = 340, cardH = 56;
+        const cardW = Math.min(340, w-40), cardH = mobile?48:56;
         const startY = h * 0.25;
-        const spacing = 68;
+        const spacing = mobile?56:68;
 
         tracks.forEach((track, i) => {
             const y = startY + i * spacing;
@@ -777,12 +797,12 @@ class UI {
             ctx.textAlign = 'left';
             ctx.font = `${sel ? 'bold' : '600'} ${sel ? 20 : 17}px "Rajdhani", sans-serif`;
             ctx.fillStyle = sel ? '#ffffff' : '#99aabb';
-            ctx.fillText(track.name, cx - cardW/2 + 60, y + 2);
+            ctx.fillText(t('world_'+track.id), cx - cardW/2 + 60, y + 2);
 
             // Description
             ctx.font = '12px "Rajdhani", sans-serif';
             ctx.fillStyle = sel ? '#aabbcc' : '#556677';
-            ctx.fillText(track.desc, cx - cardW/2 + 60, y + 18);
+            ctx.fillText(t('world_'+track.id+'_desc'), cx - cardW/2 + 60, y + 18);
 
             // Selection arrows
             if(sel) {
@@ -801,7 +821,7 @@ class UI {
         ctx.font = '13px "Rajdhani", sans-serif';
         ctx.fillStyle = '#556677';
         ctx.textAlign = 'center';
-        ctx.fillText('W/S o ↑/↓: Seleccionar  •  ENTER: Iniciar  •  ESC: Volver', w/2, h - 30);
+        ctx.fillText(t('race_controls_hint'), w/2, h - 30);
 
         this._scanlines(ctx, w, h, 0.02);
     }
@@ -809,8 +829,8 @@ class UI {
     renderPauseMenu(ctx,w,h) {
         ctx.fillStyle='rgba(10,10,26,0.85)'; ctx.fillRect(0,0,w,h);
         ctx.font='bold 36px "Orbitron", monospace'; ctx.fillStyle=COLORS.DRONE_YELLOW;
-        ctx.textAlign='center'; ctx.fillText('PAUSA', w/2, h*0.35);
-        const items=['CONTINUAR','REINICIAR','MENÚ PRINCIPAL'];
+        ctx.textAlign='center'; ctx.fillText(t('pause_title'), w/2, h*0.35);
+        const items=[t('pause_continue'),t('pause_restart'),t('pause_menu')];
         items.forEach((item,i)=>{
             const y=h*0.5+i*50; const sel=i===this.selectedMenuItem;
             if(sel){ ctx.fillStyle=rgbaString(COLORS.DRONE_YELLOW,0.08); ctx.fillRect(w/2-120,y-16,240,32); }
@@ -823,21 +843,22 @@ class UI {
 
     renderGameOver(ctx,w,h,stats) {
         ctx.fillStyle='rgba(10,10,26,0.9)'; ctx.fillRect(0,0,w,h);
+        const mobile = w < 600;
         ctx.save(); ctx.shadowColor=COLORS.DANGER_RED; ctx.shadowBlur=20;
-        ctx.font='bold 38px "Orbitron", monospace'; ctx.fillStyle=COLORS.DANGER_RED;
-        ctx.textAlign='center'; ctx.fillText('DRONE PERDIDO', w/2, h*0.18);
+        ctx.font=`bold ${mobile?26:38}px "Orbitron", monospace`; ctx.fillStyle=COLORS.DANGER_RED;
+        ctx.textAlign='center'; ctx.fillText(t('go_title'), w/2, h*0.18);
         ctx.restore();
-        const pW=360, pH=260, pX=(w-pW)/2, pY=h*0.24;
+        const pW=Math.min(360,w-30), pH=260, pX=(w-pW)/2, pY=h*0.24;
         ctx.fillStyle=COLORS.UI_PANEL; ctx.fillRect(pX,pY,pW,pH);
         ctx.strokeStyle=COLORS.UI_PANEL_BORDER; ctx.lineWidth=1; ctx.strokeRect(pX,pY,pW,pH);
         const lines=[
-            {l:'PUNTUACIÓN',v:stats.score.toLocaleString(),c:COLORS.UI_TEXT},
-            {l:'RÉCORD',v:stats.highScore.toLocaleString(),c:stats.isNewHigh?COLORS.GOLD:COLORS.UI_DIM},
-            {l:'TIEMPO',v:`${Math.floor(stats.timeAlive/60)}:${Math.floor(stats.timeAlive%60).toString().padStart(2,'0')}`,c:COLORS.UI_TEXT},
-            {l:'ENTREGAS',v:stats.deliveries.toString(),c:COLORS.DELIVERY_GREEN},
-            {l:'COMBO MÁX',v:`x${stats.maxCombo}`,c:COLORS.RUSH_YELLOW},
-            {l:'MONEDAS',v:stats.coinsEarned.toString(),c:COLORS.COIN_GOLD},
-            {l:'RUSH ACTIVACIONES',v:stats.rushCount.toString(),c:COLORS.RUSH_ORANGE},
+            {l:t('go_score'),v:stats.score.toLocaleString(),c:COLORS.UI_TEXT},
+            {l:t('go_record'),v:stats.highScore.toLocaleString(),c:stats.isNewHigh?COLORS.GOLD:COLORS.UI_DIM},
+            {l:t('go_time'),v:`${Math.floor(stats.timeAlive/60)}:${Math.floor(stats.timeAlive%60).toString().padStart(2,'0')}`,c:COLORS.UI_TEXT},
+            {l:t('go_deliveries'),v:stats.deliveries.toString(),c:COLORS.DELIVERY_GREEN},
+            {l:t('go_max_combo'),v:`x${stats.maxCombo}`,c:COLORS.RUSH_YELLOW},
+            {l:t('go_coins'),v:stats.coinsEarned.toString(),c:COLORS.COIN_GOLD},
+            {l:t('go_rush_activations'),v:stats.rushCount.toString(),c:COLORS.RUSH_ORANGE},
         ];
         lines.forEach((s,i)=>{
             const sy=pY+28+i*33;
@@ -849,10 +870,10 @@ class UI {
         if(stats.isNewHigh){
             ctx.font='bold 14px "Rajdhani"'; ctx.fillStyle=COLORS.GOLD; ctx.textAlign='center';
             ctx.globalAlpha=Math.sin(this.menuAnimTimer*4)*0.3+0.7;
-            ctx.fillText('★ NUEVO RÉCORD ★', w/2, pY-10);
+            ctx.fillText(t('go_new_record'), w/2, pY-10);
             ctx.globalAlpha=1;
         }
-        const btns=['JUGAR DE NUEVO','MEJORAS','MENÚ PRINCIPAL'];
+        const btns=[t('go_play_again'),t('go_upgrades'),t('go_main_menu')];
         btns.forEach((item,i)=>{
             const y=pY+pH+35+i*45; const sel=i===this.selectedMenuItem;
             if(sel){ ctx.fillStyle=rgbaString(COLORS.DRONE_YELLOW,0.08); ctx.fillRect(w/2-120,y-16,240,32); }
@@ -865,11 +886,12 @@ class UI {
 
     renderShop(ctx,w,h,upg,coins) {
         ctx.fillStyle='rgba(10,10,26,0.88)'; ctx.fillRect(0,0,w,h);
-        ctx.font='bold 28px "Orbitron", monospace'; ctx.fillStyle=COLORS.DRONE_YELLOW;
-        ctx.textAlign='center'; ctx.fillText('MEJORAS', w/2, 48);
-        ctx.font='bold 16px "Rajdhani"'; ctx.fillStyle=COLORS.COIN_GOLD;
-        ctx.fillText(`🪙 MONEDAS: ${coins}`, w/2, 76);
-        const iH=68, sY=100, iW=460, iX=(w-iW)/2;
+        const mobile = w < 600;
+        ctx.font=`bold ${mobile?22:28}px "Orbitron", monospace`; ctx.fillStyle=COLORS.DRONE_YELLOW;
+        ctx.textAlign='center'; ctx.fillText(t('shop_title'), w/2, 48);
+        ctx.font=`bold ${mobile?13:16}px "Rajdhani"`; ctx.fillStyle=COLORS.COIN_GOLD;
+        ctx.fillText(`🪙 ${t('shop_coins')}: ${coins}`, w/2, 76);
+        const iH=mobile?60:68, sY=100, iW=Math.min(460,w-30), iX=(w-iW)/2;
         this.shopItems.forEach((key,i)=>{
             const u=CONFIG.UPGRADES[key], lv=upg[key]||0;
             const cost=u.baseCost*(lv+1), maxed=lv>=u.maxLevel, afford=coins>=cost&&!maxed;
@@ -879,47 +901,53 @@ class UI {
             ctx.strokeStyle=sel?COLORS.DRONE_YELLOW:COLORS.UI_PANEL_BORDER;
             ctx.lineWidth=1; ctx.strokeRect(iX,y,iW,iH);
             ctx.font='bold 16px "Rajdhani"'; ctx.fillStyle=sel?COLORS.DRONE_YELLOW:COLORS.UI_TEXT;
-            ctx.textAlign='left'; ctx.fillText(u.name, iX+15, y+24);
+            ctx.textAlign='left'; ctx.fillText(t('upg_'+key), iX+15, y+24);
             ctx.font='12px "Rajdhani"'; ctx.fillStyle=COLORS.UI_DIM;
-            ctx.fillText(u.description, iX+15, y+44);
+            ctx.fillText(t('upg_'+key+'_desc'), iX+15, y+44);
             for(let l=0;l<u.maxLevel;l++){
                 ctx.fillStyle=l<lv?COLORS.DRONE_YELLOW:'#222';
                 ctx.fillRect(iX+15+l*18, y+52, 12, 4);
             }
             ctx.textAlign='right';
-            if(maxed){ ctx.font='bold 14px "Rajdhani"'; ctx.fillStyle=COLORS.GOLD; ctx.fillText('MÁXIMO',iX+iW-15,y+35); }
+            if(maxed){ ctx.font='bold 14px "Rajdhani"'; ctx.fillStyle=COLORS.GOLD; ctx.fillText(t('shop_max'),iX+iW-15,y+35); }
             else{ ctx.font='14px "Rajdhani"'; ctx.fillStyle=afford?COLORS.COIN_GOLD:COLORS.DANGER_RED; ctx.fillText(`🪙 ${cost}`,iX+iW-15,y+35); }
         });
         ctx.font='12px "Rajdhani"'; ctx.fillStyle=COLORS.UI_DIM; ctx.textAlign='center';
-        ctx.fillText('ESC: Volver  •  ENTER: Comprar', w/2, h-22);
+        ctx.fillText(t('shop_hint'), w/2, h-22);
         this._scanlines(ctx,w,h,0.02);
     }
 
     renderTutorial(ctx,w,h) {
         ctx.fillStyle='rgba(10,10,26,0.92)'; ctx.fillRect(0,0,w,h);
-        ctx.font='bold 28px "Orbitron", monospace'; ctx.fillStyle=COLORS.DRONE_YELLOW;
-        ctx.textAlign='center'; ctx.fillText('CÓMO JUGAR', w/2, 55);
+        const mobile = w < 600;
+        ctx.font=`bold ${mobile?20:28}px "Orbitron", monospace`; ctx.fillStyle=COLORS.DRONE_YELLOW;
+        ctx.textAlign='center'; ctx.fillText(t('tut_title'), w/2, mobile?40:55);
         const instr=[
-            {icon:'🎮', text:'WASD para mover el drone en la dirección que miras'},
-            {icon:'🖱️', text:'Ratón para mirar alrededor (click para capturar)'},
-            {icon:'⬆️', text:'ESPACIO subir • SHIFT bajar'},
-            {icon:'🌀', text:'Doble-tap A/D para barrel roll (esquiva con invencibilidad)'},
-            {icon:'🛡', text:'Q para activar escudo EMP (consume medidor Rush)'},
-            {icon:'📦', text:'Vuela cerca de los paquetes para recogerlos'},
-            {icon:'🏁', text:'Lleva el paquete al pad de entrega (columna verde)'},
-            {icon:'⚡', text:'Las entregas llenan el medidor Rush Mode'},
-            {icon:'🔥', text:'Rush Mode: 3x puntos pero todo más rápido'},
-            {icon:'⚠', text:'¡CUIDADO! Los drones enemigos te disparan proyectiles'},
+            {icon:'🎮', text:t('tut_move')},
+            {icon:'🖱️', text:t('tut_look')},
+            {icon:'⬆️', text:t('tut_updown')},
+            {icon:'🌀', text:t('tut_roll')},
+            {icon:'🛡', text:t('tut_shield')},
+            {icon:'📦', text:t('tut_pickup')},
+            {icon:'🏁', text:t('tut_deliver')},
+            {icon:'⚡', text:t('tut_rush')},
+            {icon:'🔥', text:t('tut_rush_mode')},
+            {icon:'⚠', text:t('tut_danger')},
         ];
+        const rowH = mobile ? 32 : 40;
+        const topY = mobile ? 65 : 100;
+        const iconX = mobile ? 25 : w/2-240;
+        const textX = mobile ? 50 : w/2-210;
+        const maxTextW = mobile ? w-60 : w;
         instr.forEach((inst,i)=>{
-            const y=100+i*40;
-            ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.fillText(inst.icon, w/2-240, y+5);
-            ctx.font='13px "Rajdhani", sans-serif'; ctx.fillStyle=COLORS.UI_TEXT;
-            ctx.textAlign='left'; ctx.fillText(inst.text, w/2-210, y+5);
+            const y=topY+i*rowH;
+            ctx.font=`${mobile?14:18}px sans-serif`; ctx.textAlign='center'; ctx.fillText(inst.icon, iconX, y+5);
+            ctx.font=`${mobile?11:13}px "Rajdhani", sans-serif`; ctx.fillStyle=COLORS.UI_TEXT;
+            ctx.textAlign='left'; ctx.fillText(inst.text, textX, y+5, maxTextW);
             ctx.textAlign='center';
         });
-        ctx.font='bold 14px "Rajdhani"'; ctx.fillStyle=COLORS.DRONE_YELLOW;
-        ctx.fillText('Presiona cualquier tecla para volver', w/2, h-36);
+        ctx.font=`bold ${mobile?12:14}px "Rajdhani"`; ctx.fillStyle=COLORS.DRONE_YELLOW;
+        ctx.fillText(t('tut_back'), w/2, h-36);
         this._scanlines(ctx,w,h,0.02);
     }
 
@@ -992,5 +1020,210 @@ class UI {
         ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#000';
         for(let y=this.scanlineOffset;y<h;y+=4) ctx.fillRect(0,y,w,1);
         ctx.restore();
+    }
+
+    // =========================================
+    // SETTINGS MENU
+    // =========================================
+    _buildSettingsItems() {
+        return [
+            // Audio section
+            {type:'header', label:'settings_audio'},
+            {type:'slider', key:'master_vol', label:'settings_master_vol', configKey:'MASTER_VOLUME', min:0, max:1, step:0.05},
+            {type:'slider', key:'sfx_vol', label:'settings_sfx_vol', configKey:'SFX_VOLUME', min:0, max:1, step:0.05},
+            {type:'slider', key:'music_vol', label:'settings_music_vol', configKey:'MUSIC_VOLUME', min:0, max:1, step:0.05},
+            // Controls section
+            {type:'header', label:'settings_controls'},
+            {type:'slider', key:'sensitivity', label:'settings_sensitivity', configKey:'MOUSE_SENSITIVITY', min:0.0005, max:0.005, step:0.0002},
+            {type:'keybind', key:'move_up', label:'settings_move_up', action:'moveUp'},
+            {type:'keybind', key:'move_down', label:'settings_move_down', action:'moveDown'},
+            {type:'keybind', key:'move_left', label:'settings_move_left', action:'moveLeft'},
+            {type:'keybind', key:'move_right', label:'settings_move_right', action:'moveRight'},
+            {type:'keybind', key:'fly_up', label:'settings_fly_up', action:'flyUp'},
+            {type:'keybind', key:'fly_down', label:'settings_fly_down', action:'flyDown'},
+            {type:'keybind', key:'shield', label:'settings_shield', action:'shield'},
+            {type:'keybind', key:'pause_key', label:'settings_pause', action:'pause'},
+            // Language & Reset
+            {type:'header', label:'settings_language'},
+            {type:'action', key:'language', label:'settings_language', action:'toggleLang'},
+            {type:'action', key:'reset', label:'settings_reset', action:'reset'},
+        ];
+    }
+
+    getSelectableSettingsItems() {
+        return this.settingsItems.filter(i=>i.type!=='header');
+    }
+
+    renderSettings(ctx, w, h, keyBindings, audioSettings) {
+        ctx.fillStyle='rgba(5,5,18,0.90)'; ctx.fillRect(0,0,w,h);
+        const mobile = w < 600;
+
+        // Title
+        ctx.save();
+        ctx.font=`bold ${mobile?22:32}px "Orbitron", monospace`;
+        ctx.textAlign='center';
+        ctx.shadowColor='#FFB800'; ctx.shadowBlur=20;
+        ctx.fillStyle='#FFB800';
+        ctx.fillText(t('settings_title'), w/2, 50);
+        ctx.shadowBlur=0;
+        ctx.restore();
+
+        const selectables = this.getSelectableSettingsItems();
+        const panelW=Math.min(500, w-30), startY=80;
+        const pX=(w-panelW)/2;
+        const sliderStart = mobile ? pX + panelW*0.45 : pX+230;
+        const sliderW = mobile ? panelW*0.38 : 200;
+        let y=startY;
+        let selIdx=0;
+        const scrollOffset = Math.max(0, this.selectedSettingsItem - 8) * 36;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 65, w, h-95);
+        ctx.clip();
+
+        for(const item of this.settingsItems) {
+            const drawY = y - scrollOffset;
+
+            if(item.type==='header') {
+                // Section header
+                ctx.font='bold 14px "Rajdhani", sans-serif';
+                ctx.fillStyle='#FFB800';
+                ctx.textAlign='left';
+                ctx.fillText(t(item.label), pX+5, drawY+14);
+                // Line
+                ctx.strokeStyle='rgba(255,184,0,0.2)';
+                ctx.lineWidth=1;
+                ctx.beginPath();
+                ctx.moveTo(pX, drawY+20); ctx.lineTo(pX+panelW, drawY+20);
+                ctx.stroke();
+                y+=30;
+                continue;
+            }
+
+            const sel = selIdx === this.selectedSettingsItem;
+            const iy = drawY;
+
+            // Row background
+            if(sel) {
+                ctx.fillStyle='rgba(255,184,0,0.08)';
+                ctx.fillRect(pX, iy-2, panelW, 30);
+                ctx.strokeStyle='rgba(255,184,0,0.35)';
+                ctx.lineWidth=1;
+                ctx.strokeRect(pX, iy-2, panelW, 30);
+            }
+
+            // Label
+            ctx.font=`${sel?'bold':'600'} 13px "Rajdhani", sans-serif`;
+            ctx.fillStyle=sel?'#ffffff':'#99aabb';
+            ctx.textAlign='left';
+            ctx.fillText(t(item.label), pX+12, iy+16);
+
+            if(item.type==='slider') {
+                // Slider bar
+                const barX=sliderStart, barW=sliderW, barH=8, barY=iy+10;
+                let val, range;
+                if(item.configKey==='MOUSE_SENSITIVITY') {
+                    val = audioSettings.sensitivity || CONFIG.MOUSE_SENSITIVITY;
+                    range = (val - item.min)/(item.max - item.min);
+                } else {
+                    val = audioSettings[item.configKey] !== undefined ? audioSettings[item.configKey] : CONFIG[item.configKey];
+                    range = (val - item.min)/(item.max - item.min);
+                }
+                // Background
+                ctx.fillStyle='rgba(255,255,255,0.08)';
+                ctx.fillRect(barX, barY, barW, barH);
+                // Fill
+                const grd = ctx.createLinearGradient(barX, 0, barX+barW*range, 0);
+                grd.addColorStop(0, '#FFB800'); grd.addColorStop(1, '#FF8C00');
+                ctx.fillStyle=grd;
+                ctx.fillRect(barX, barY, barW*range, barH);
+                // Border
+                ctx.strokeStyle=sel?'rgba(255,184,0,0.5)':'rgba(255,255,255,0.1)';
+                ctx.lineWidth=0.5;
+                ctx.strokeRect(barX, barY, barW, barH);
+                // Value text
+                ctx.font='bold 12px "Rajdhani", sans-serif';
+                ctx.fillStyle=sel?'#FFB800':'#667788';
+                ctx.textAlign='right';
+                if(item.configKey==='MOUSE_SENSITIVITY') {
+                    ctx.fillText((val*1000).toFixed(1), pX+panelW-10, iy+17);
+                } else {
+                    ctx.fillText(Math.round(range*100)+'%', pX+panelW-10, iy+17);
+                }
+                // Arrows if selected
+                if(sel) {
+                    ctx.font='14px "Rajdhani"'; ctx.fillStyle='#FFB800';
+                    ctx.textAlign='center';
+                    ctx.fillText('◂', barX-10, iy+17);
+                    ctx.fillText('▸', barX+barW+10, iy+17);
+                }
+            } else if(item.type==='keybind') {
+                const bound = keyBindings[item.action] || '???';
+                const isWaiting = sel && this.settingsWaitingKey;
+                ctx.font='bold 13px "Rajdhani", sans-serif';
+                ctx.textAlign='right';
+                if(isWaiting) {
+                    const pulse=Math.sin(this.menuAnimTimer*6)*0.3+0.7;
+                    ctx.fillStyle=rgbaString('#FFB800',pulse);
+                    ctx.fillText(t('settings_press_key'), pX+panelW-10, iy+17);
+                } else {
+                    // Key box
+                    const keyLabel = this._formatKeyCode(bound);
+                    const kw = Math.max(ctx.measureText(keyLabel).width+16, 60);
+                    const kx = pX+panelW-kw-5, ky = iy+2;
+                    ctx.fillStyle=sel?'rgba(255,184,0,0.15)':'rgba(255,255,255,0.05)';
+                    ctx.fillRect(kx, ky, kw, 22);
+                    ctx.strokeStyle=sel?'rgba(255,184,0,0.4)':'rgba(255,255,255,0.1)';
+                    ctx.lineWidth=0.5;
+                    ctx.strokeRect(kx, ky, kw, 22);
+                    ctx.fillStyle=sel?'#FFB800':'#aabbcc';
+                    ctx.textAlign='center';
+                    ctx.fillText(keyLabel, kx+kw/2, iy+17);
+                }
+            } else if(item.type==='action') {
+                ctx.font='bold 13px "Rajdhani", sans-serif';
+                ctx.textAlign='right';
+                if(item.action==='toggleLang') {
+                    ctx.fillStyle=sel?'#FFB800':'#aabbcc';
+                    ctx.fillText(getLang()==='es'?'ESPAÑOL 🇪🇸':'ENGLISH 🇬🇧', pX+panelW-10, iy+17);
+                } else if(item.action==='reset') {
+                    ctx.fillStyle=sel?COLORS.DANGER_RED:'#667788';
+                    ctx.fillText('↺', pX+panelW-10, iy+17);
+                }
+            }
+
+            selIdx++;
+            y+=36;
+        }
+
+        ctx.restore();
+
+        // Bottom hint
+        ctx.font='12px "Rajdhani", sans-serif';
+        ctx.fillStyle='#556677';
+        ctx.textAlign='center';
+        ctx.fillText(t('settings_hint'), w/2, h-18);
+
+        this._scanlines(ctx, w, h, 0.02);
+    }
+
+    _formatKeyCode(code) {
+        const map = {
+            'KeyW':'W','KeyA':'A','KeyS':'S','KeyD':'D',
+            'KeyQ':'Q','KeyE':'E','KeyF':'F','KeyR':'R',
+            'KeyZ':'Z','KeyX':'X','KeyC':'C','KeyV':'V',
+            'Space':'SPACE','ShiftLeft':'L-SHIFT','ShiftRight':'R-SHIFT',
+            'ControlLeft':'L-CTRL','ControlRight':'R-CTRL',
+            'AltLeft':'L-ALT','AltRight':'R-ALT',
+            'ArrowUp':'↑','ArrowDown':'↓','ArrowLeft':'←','ArrowRight':'→',
+            'Escape':'ESC','Enter':'ENTER','Tab':'TAB','Backspace':'BKSP',
+            'KeyP':'P','KeyI':'I','KeyO':'O','KeyU':'U',
+            'KeyH':'H','KeyJ':'J','KeyK':'K','KeyL':'L',
+            'KeyN':'N','KeyM':'M','KeyB':'B','KeyG':'G','KeyT':'T','KeyY':'Y',
+            'Digit1':'1','Digit2':'2','Digit3':'3','Digit4':'4','Digit5':'5',
+            'Digit6':'6','Digit7':'7','Digit8':'8','Digit9':'9','Digit0':'0',
+        };
+        return map[code] || code;
     }
 }
