@@ -1,6 +1,61 @@
 // ============================================
 // DRONES PANDAVEN 3D — UI System (FPS Cockpit HUD)
 // ============================================
+
+// Track World Definitions
+const RACE_WORLDS = [
+    {
+        id: 'campo', name: '🌿 CAMPO VERDE',
+        desc: 'Pradera abierta con árboles y rocas',
+        groundColor: 0x3a7a2a, patchColors: [0x2d6b1f, 0x458a33, 0x357a28, 0x4a9538],
+        gateColor: 0x00ffaa, skyColor: 0x88ccff,
+        treeColors: [0x2d6b1f, 0x3d8c2e, 0x4ea83a],
+        rockColors: [0x888888, 0x777766, 0x999988],
+        fogColor: 0x88ccff, fogDensity: 0.0008,
+        ambientColor: 0x445566, sunColor: 0xffffff
+    },
+    {
+        id: 'desierto', name: '🏜️ DESIERTO ROJO',
+        desc: 'Arena ardiente con cactus y cañones',
+        groundColor: 0xc4923a, patchColors: [0xb5842f, 0xd4a24a, 0xaa7525, 0xc89838],
+        gateColor: 0xff6600, skyColor: 0xffaa55,
+        treeColors: [0x4a7a2a, 0x5a8a3a], // cacti
+        rockColors: [0xaa5533, 0xcc6644, 0x884422],
+        fogColor: 0xffcc88, fogDensity: 0.0005,
+        ambientColor: 0x664433, sunColor: 0xffddaa
+    },
+    {
+        id: 'neon', name: '🌃 NOCHE NEON',
+        desc: 'Ciudad cyberpunk iluminada con neón',
+        groundColor: 0x111122, patchColors: [0x0a0a1a, 0x151530, 0x0d0d25, 0x1a1a35],
+        gateColor: 0xff00ff, skyColor: 0x050510,
+        treeColors: [0x333355, 0x444466],
+        rockColors: [0x333344, 0x444455, 0x222233],
+        fogColor: 0x0a0a20, fogDensity: 0.001,
+        ambientColor: 0x221133, sunColor: 0x6644aa
+    },
+    {
+        id: 'nevado', name: '❄️ MONTAÑA NEVADA',
+        desc: 'Cumbres heladas con pinos y nieve',
+        groundColor: 0xddddee, patchColors: [0xccccdd, 0xeeeeff, 0xbbbbcc, 0xd5d5e5],
+        gateColor: 0x00ccff, skyColor: 0xaabbcc,
+        treeColors: [0x1a4a2a, 0x2a5a3a, 0x0d3d1d],
+        rockColors: [0x999999, 0xaaaaaa, 0x888899],
+        fogColor: 0xccccdd, fogDensity: 0.001,
+        ambientColor: 0x556677, sunColor: 0xddeeff
+    },
+    {
+        id: 'volcanico', name: '🌋 VOLCÁNICO',
+        desc: 'Tierra de lava con rocas de obsidiana',
+        groundColor: 0x1a1010, patchColors: [0x221515, 0x331818, 0x0f0808, 0x2a1212],
+        gateColor: 0xff3300, skyColor: 0x220808,
+        treeColors: [0x222222, 0x333333],
+        rockColors: [0x111111, 0x1a1a1a, 0x0a0a0a],
+        fogColor: 0x331100, fogDensity: 0.0012,
+        ambientColor: 0x441100, sunColor: 0xff4400
+    }
+];
+
 class UI {
     constructor() {
         this.notifications=[];
@@ -22,7 +77,11 @@ class UI {
         this.minimapEntities=[];
         // Waypoint
         this.waypoint=null;
+        // Track select
+        this.selectedTrack=0;
     }
+
+    getTrackWorlds() { return RACE_WORLDS; }
 
     update(dt) {
         this.menuAnimTimer+=dt;
@@ -640,6 +699,111 @@ class UI {
         ctx.font='10px "Rajdhani", sans-serif'; ctx.fillStyle=rgbaString('#667788',0.4);
         ctx.fillText('DRONES PANDAVEN 3D — Primera Persona Inmersivo', w/2, h-12);
         this._scanlines(ctx,w,h,0.03);
+    }
+
+    renderTrackSelect(ctx, w, h) {
+        ctx.fillStyle='rgba(5,5,18,0.82)';
+        ctx.fillRect(0,0,w,h);
+
+        // Title
+        ctx.save();
+        ctx.font='bold 36px "Orbitron", monospace';
+        ctx.textAlign='center';
+        ctx.shadowColor='#FFB800';
+        ctx.shadowBlur=20;
+        ctx.fillStyle='#FFB800';
+        ctx.fillText('SELECCIONAR PISTA', w/2, h*0.12);
+        ctx.shadowBlur=0;
+        ctx.restore();
+
+        ctx.font='14px "Rajdhani", sans-serif';
+        ctx.fillStyle='#667788';
+        ctx.textAlign='center';
+        ctx.fillText('CARRERA PANDAVEN — ELIGE TU MUNDO', w/2, h*0.12 + 30);
+
+        const tracks = RACE_WORLDS;
+        const cardW = 340, cardH = 56;
+        const startY = h * 0.25;
+        const spacing = 68;
+
+        tracks.forEach((track, i) => {
+            const y = startY + i * spacing;
+            const sel = i === this.selectedTrack;
+            const cx = w/2;
+
+            // Card background
+            ctx.save();
+            if(sel) {
+                // Glowing selected card
+                const grd = ctx.createLinearGradient(cx - cardW/2, y, cx + cardW/2, y);
+                const hexColor = '#' + track.gateColor.toString(16).padStart(6, '0');
+                grd.addColorStop(0, 'rgba(255,255,255,0.03)');
+                grd.addColorStop(0.3, hexToRGBA(hexColor, 0.15));
+                grd.addColorStop(1, 'rgba(255,255,255,0.03)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(cx - cardW/2, y - cardH/2, cardW, cardH);
+
+                // Border glow
+                ctx.strokeStyle = hexColor;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = hexColor;
+                ctx.shadowBlur = 15;
+                ctx.strokeRect(cx - cardW/2, y - cardH/2, cardW, cardH);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = 'rgba(20,20,40,0.5)';
+                ctx.fillRect(cx - cardW/2, y - cardH/2, cardW, cardH);
+                ctx.strokeStyle = 'rgba(100,100,130,0.2)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cx - cardW/2, y - cardH/2, cardW, cardH);
+            }
+
+            // Color bar on left
+            const barColor = '#' + track.gateColor.toString(16).padStart(6, '0');
+            ctx.fillStyle = barColor;
+            ctx.fillRect(cx - cardW/2, y - cardH/2, 5, cardH);
+
+            // Ground color preview square
+            ctx.fillStyle = '#' + track.groundColor.toString(16).padStart(6, '0');
+            ctx.fillRect(cx - cardW/2 + 14, y - 18, 36, 36);
+            // Mini gate circle inside
+            ctx.strokeStyle = barColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx - cardW/2 + 32, y, 10, 0, Math.PI*2);
+            ctx.stroke();
+
+            // Track name
+            ctx.textAlign = 'left';
+            ctx.font = `${sel ? 'bold' : '600'} ${sel ? 20 : 17}px "Rajdhani", sans-serif`;
+            ctx.fillStyle = sel ? '#ffffff' : '#99aabb';
+            ctx.fillText(track.name, cx - cardW/2 + 60, y + 2);
+
+            // Description
+            ctx.font = '12px "Rajdhani", sans-serif';
+            ctx.fillStyle = sel ? '#aabbcc' : '#556677';
+            ctx.fillText(track.desc, cx - cardW/2 + 60, y + 18);
+
+            // Selection arrows
+            if(sel) {
+                ctx.font = '18px "Rajdhani"';
+                ctx.fillStyle = barColor;
+                ctx.textAlign = 'right';
+                ctx.fillText('▸', cx + cardW/2 - 12, y + 5);
+                ctx.textAlign = 'left';
+                ctx.fillText('◂', cx - cardW/2 + 7, y + 5);
+            }
+
+            ctx.restore();
+        });
+
+        // Bottom hints
+        ctx.font = '13px "Rajdhani", sans-serif';
+        ctx.fillStyle = '#556677';
+        ctx.textAlign = 'center';
+        ctx.fillText('W/S o ↑/↓: Seleccionar  •  ENTER: Iniciar  •  ESC: Volver', w/2, h - 30);
+
+        this._scanlines(ctx, w, h, 0.02);
     }
 
     renderPauseMenu(ctx,w,h) {

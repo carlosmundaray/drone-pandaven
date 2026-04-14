@@ -169,6 +169,7 @@ function hexToRgb(hex) {
     return r ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) } : {r:0,g:0,b:0};
 }
 function rgbaString(hex, a) { const c=hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
+function hexToRGBA(hex, a) { return rgbaString(hex, a); }
 function lerpColor(h1, h2, t) {
     const c1=hexToRgb(h1), c2=hexToRgb(h2);
     return `rgb(${Math.round(lerp(c1.r,c2.r,t))},${Math.round(lerp(c1.g,c2.g,t))},${Math.round(lerp(c1.b,c2.b,t))})`;

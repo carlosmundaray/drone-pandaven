@@ -51,6 +51,7 @@ class LevelGenerator {
     }
 
     setRacingMode(enabled) { this.racingMode = enabled; }
+    setRaceWorld(world) { this.raceWorld = world || null; }
     setDifficulty(d) { this.difficulty=clamp(d,0,1); }
 
     generateInitialChunks(dist) {
@@ -135,26 +136,30 @@ class LevelGenerator {
 
     // ====== FPV RACING TERRAIN ======
     _genRaceGround(z) {
+        const W = this.raceWorld || {};
+        const groundCol = W.groundColor || 0x3a7a2a;
+        const patchCols = W.patchColors || [0x2d6b1f, 0x458a33, 0x357a28, 0x4a9538];
+        const treeCols = W.treeColors || [0x2d6b1f, 0x3d8c2e, 0x4ea83a];
+        const rockCols = W.rockColors || [0x888888, 0x777766, 0x999988];
         const group = new THREE.Group();
 
-        // Wide grass field
+        // Wide field
         const fieldGeo = new THREE.PlaneGeometry(800, this.chunkDepth);
         const fieldMat = new THREE.MeshStandardMaterial({
-            color: 0x3a7a2a, metalness: 0, roughness: 1, side: THREE.DoubleSide
+            color: groundCol, metalness: 0, roughness: 1, side: THREE.DoubleSide
         });
         const field = new THREE.Mesh(fieldGeo, fieldMat);
         field.rotation.x = -Math.PI/2;
         field.position.set(0, 0, z - this.chunkDepth/2);
         group.add(field);
 
-        // Darker grass patches for visual variety
+        // Terrain patches
         for(let i=0; i<6; i++) {
             const patchW = randomRange(60, 200);
             const patchD = randomRange(60, 200);
             const patchGeo = new THREE.PlaneGeometry(patchW, patchD);
-            const greens = [0x2d6b1f, 0x458a33, 0x357a28, 0x4a9538];
             const patchMat = new THREE.MeshStandardMaterial({
-                color: randomChoice(greens), metalness: 0, roughness: 1, side: THREE.DoubleSide
+                color: randomChoice(patchCols), metalness: 0, roughness: 1, side: THREE.DoubleSide
             });
             const patch = new THREE.Mesh(patchGeo, patchMat);
             patch.rotation.x = -Math.PI/2;
@@ -162,16 +167,14 @@ class LevelGenerator {
             group.add(patch);
         }
 
-        // Scattered rocks/props
+        // Scattered rocks
         for(let i=0; i<4; i++) {
             const rx = randomRange(-350, 350);
             const rz = z - randomRange(50, this.chunkDepth - 50);
-            // Only place props away from the flight path
             if(Math.abs(rx) > 100) {
                 const rockGeo = new THREE.DodecahedronGeometry(randomRange(3, 12), 0);
                 const rockMat = new THREE.MeshStandardMaterial({
-                    color: randomChoice([0x888888, 0x777766, 0x999988]),
-                    metalness: 0.2, roughness: 0.9
+                    color: randomChoice(rockCols), metalness: 0.2, roughness: 0.9
                 });
                 const rock = new THREE.Mesh(rockGeo, rockMat);
                 rock.position.set(rx, randomRange(1, 5), rz);
@@ -180,35 +183,85 @@ class LevelGenerator {
             }
         }
 
-        // Scattered low trees (away from flight corridor)
+        // Trees / props (world-specific style)
+        const isVolcanic = W.id === 'volcanico';
+        const isNeon = W.id === 'neon';
+        const isSnow = W.id === 'nevado';
+        const isDesert = W.id === 'desierto';
+
         for(let i=0; i<3; i++) {
             const tx = randomChoice([-1,1]) * randomRange(150, 350);
             const tz = z - randomRange(100, this.chunkDepth - 100);
-            const treeG = new THREE.Group();
-            const trunkH = randomRange(8, 16);
-            const trunkGeo = new THREE.CylinderGeometry(1, 1.5, trunkH, 5);
-            const trunkMat = new THREE.MeshStandardMaterial({color: 0x664422, roughness: 0.9});
-            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            trunk.position.y = trunkH/2;
-            treeG.add(trunk);
-            const canopyR = randomRange(5, 10);
-            const canopyGeo = new THREE.SphereGeometry(canopyR, 6, 5);
-            const canopyMat = new THREE.MeshStandardMaterial({
-                color: randomChoice([0x2d6b1f, 0x3d8c2e, 0x4ea83a]), roughness: 0.8
-            });
-            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-            canopy.position.y = trunkH + canopyR * 0.4;
-            canopy.scale.y = 0.65;
-            treeG.add(canopy);
-            treeG.position.set(tx, 0, tz);
-            group.add(treeG);
+
+            if(isVolcanic) {
+                // Lava rocks
+                const lavaGeo = new THREE.DodecahedronGeometry(randomRange(6, 18), 1);
+                const lavaMat = new THREE.MeshStandardMaterial({
+                    color: 0x1a0a0a, emissive: 0xff2200, emissiveIntensity: randomRange(0.1, 0.4),
+                    metalness: 0.3, roughness: 0.8
+                });
+                const lava = new THREE.Mesh(lavaGeo, lavaMat);
+                lava.position.set(tx, randomRange(2, 8), tz);
+                group.add(lava);
+            } else if(isDesert) {
+                // Cactus
+                const cactH = randomRange(10, 22);
+                const cactGeo = new THREE.CylinderGeometry(1.5, 2, cactH, 6);
+                const cactMat = new THREE.MeshStandardMaterial({color: randomChoice(treeCols), roughness: 0.8});
+                const cact = new THREE.Mesh(cactGeo, cactMat);
+                cact.position.set(tx, cactH/2, tz);
+                group.add(cact);
+                // Arm
+                if(Math.random() > 0.4) {
+                    const armGeo = new THREE.CylinderGeometry(1, 1.2, 6, 5);
+                    const arm = new THREE.Mesh(armGeo, cactMat);
+                    arm.position.set(tx + 3, cactH * 0.6, tz);
+                    arm.rotation.z = -Math.PI/4;
+                    group.add(arm);
+                }
+            } else if(isNeon) {
+                // Neon pillars
+                const pillarH = randomRange(20, 60);
+                const pillarGeo = new THREE.BoxGeometry(3, pillarH, 3);
+                const pillarMat = new THREE.MeshStandardMaterial({
+                    color: randomChoice(treeCols), emissive: randomChoice([0x6600ff, 0xff0066, 0x0066ff]),
+                    emissiveIntensity: 0.6, metalness: 0.9, roughness: 0.1
+                });
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.set(tx, pillarH/2, tz);
+                group.add(pillar);
+            } else {
+                // Normal trees (campo / nevado)
+                const treeG = new THREE.Group();
+                const trunkH = randomRange(8, 16);
+                const trunkGeo = new THREE.CylinderGeometry(1, 1.5, trunkH, 5);
+                const trunkMat = new THREE.MeshStandardMaterial({color: isSnow ? 0x554433 : 0x664422, roughness: 0.9});
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = trunkH/2;
+                treeG.add(trunk);
+                const canopyR = randomRange(5, 10);
+                const canopyGeo = isSnow
+                    ? new THREE.ConeGeometry(canopyR, canopyR*2, 6)
+                    : new THREE.SphereGeometry(canopyR, 6, 5);
+                const canopyMat = new THREE.MeshStandardMaterial({
+                    color: randomChoice(treeCols), roughness: 0.8
+                });
+                const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+                canopy.position.y = trunkH + (isSnow ? canopyR : canopyR * 0.4);
+                if(!isSnow) canopy.scale.y = 0.65;
+                treeG.add(canopy);
+                treeG.position.set(tx, 0, tz);
+                group.add(treeG);
+            }
         }
 
-        // Ground grid lines (subtle runway markings)
+        // Ground grid lines
+        const lineColor = isNeon ? 0x4400aa : isVolcanic ? 0xff2200 : 0xffffff;
+        const lineOpacity = isNeon ? 0.15 : isVolcanic ? 0.1 : 0.06;
         for(let i=0; i < this.chunkDepth; i+=100) {
             const lineGeo = new THREE.PlaneGeometry(300, 1);
             const lineMat = new THREE.MeshBasicMaterial({
-                color: 0xffffff, transparent: true, opacity: 0.06, side: THREE.DoubleSide
+                color: lineColor, transparent: true, opacity: lineOpacity, side: THREE.DoubleSide
             });
             const line = new THREE.Mesh(lineGeo, lineMat);
             line.rotation.x = -Math.PI/2;
@@ -221,7 +274,8 @@ class LevelGenerator {
     }
 
     _genRaceGates(chunk, z) {
-        // Place 2-3 gates per chunk at varying positions and altitudes
+        const W = this.raceWorld || {};
+        const gateColor = W.gateColor || 0x00ffaa;
         const numGates = randomInt(2, 3);
         const spacing = this.chunkDepth / (numGates + 1);
 
@@ -229,9 +283,9 @@ class LevelGenerator {
             const gateZ = z - spacing * (i + 1);
             const gateX = randomRange(-60, 60);
             const gateY = randomRange(20, 80);
-            const rot = randomRange(-0.3, 0.3); // slight angle variation
+            const rot = randomRange(-0.3, 0.3);
 
-            const gate = new RaceGate(gateX, gateY, gateZ, rot, this.raceGateCounter || 0, this.scene);
+            const gate = new RaceGate(gateX, gateY, gateZ, rot, this.raceGateCounter || 0, this.scene, gateColor);
             chunk.obstacles.push(gate);
 
             this.raceGateCounter = (this.raceGateCounter || 0) + 1;

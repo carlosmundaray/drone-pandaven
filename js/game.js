@@ -156,6 +156,7 @@ class Game {
         this.ui.update(dt);
         switch(this.state){
             case 'menu':this._updateMenu(dt);break;
+            case 'trackSelect':this._updateTrackSelect(dt);break;
             case 'playing':this._updatePlaying(dt);break;
             case 'paused':this._updatePaused(dt);break;
             case 'gameover':this._updateGameOver(dt);break;
@@ -172,6 +173,7 @@ class Game {
         ctx.clearRect(0,0,w,h);
         switch(this.state){
             case 'menu':this.ui.renderMainMenu(ctx,w,h);break;
+            case 'trackSelect':this.ui.renderTrackSelect(ctx,w,h);break;
             case 'playing':
                 this.ui.renderCockpitHUD(ctx,w,h,{
                     score:this.score,
@@ -235,10 +237,37 @@ class Game {
             this.audio.init();this.audio.resume();this.audio.playMenuConfirm();
             switch(this.ui.selectedMenuItem){
                 case 0:this._startGame('survival');break;
-                case 1:this._startGame('racing');break;
+                case 1:this.state='trackSelect';this.ui.selectedTrack=0;break;
                 case 2:this.state='shop';this.ui.selectedShopItem=0;break;
                 case 3:this.state='tutorial';break;
             }
+        }
+    }
+
+    _updateTrackSelect(dt) {
+        this.camera.z-=dt*40;
+        this.camera.x=Math.sin(Date.now()*0.0003)*30;
+        this.camera.y=140+Math.sin(Date.now()*0.0005)*20;
+        this.camera.rig.position.set(this.camera.x,this.camera.y,this.camera.z);
+        this.camera.cam.lookAt(this.camera.x,80,this.camera.z-400);
+        this.levelGen.update(this.camera.z-200,1500);
+
+        const tracks = this.ui.getTrackWorlds();
+        if(this.input.isKeyJustPressed('ArrowUp')||this.input.isKeyJustPressed('KeyW')){
+            this.ui.selectedTrack=(this.ui.selectedTrack-1+tracks.length)%tracks.length;
+            this.audio.playMenuSelect();
+        }
+        if(this.input.isKeyJustPressed('ArrowDown')||this.input.isKeyJustPressed('KeyS')){
+            this.ui.selectedTrack=(this.ui.selectedTrack+1)%tracks.length;
+            this.audio.playMenuSelect();
+        }
+        if(this.input.isConfirmPressed()){
+            this.audio.playMenuConfirm();
+            this.selectedWorld = tracks[this.ui.selectedTrack];
+            this._startGame('racing');
+        }
+        if(this.input.isPausePressed()){
+            this.state='menu';this.ui.selectedMenuItem=1;
         }
     }
 
@@ -260,12 +289,13 @@ class Game {
 
         // Racing variables
         if(this.gameMode === 'racing') {
-            this.preRaceTimer = 3.5; // 3.. 2.. 1.. GO!
+            this.preRaceTimer = 3.5;
             this.raceFinished = false;
             this.racePosition = 1;
             this.playerGatesPassed = 0;
             this.totalGates = 0;
             this.levelGen.setRacingMode(true);
+            this.levelGen.setRaceWorld(this.selectedWorld || null);
             this.aiRacers = [];
             
             // Create 4 AI Racers
@@ -277,6 +307,18 @@ class Game {
                 this.aiRacers.push(new AIRacer(
                     startPositions[i].x, 80, startPositions[i].z, racerColors[i], this.scene
                 ));
+            }
+
+            // Apply world atmosphere
+            const W = this.selectedWorld;
+            if(W) {
+                this.scene.fog = new THREE.FogExp2(W.fogColor, W.fogDensity);
+                this.scene.background = new THREE.Color(W.skyColor);
+                // Update lighting
+                this.scene.traverse(obj => {
+                    if(obj.isAmbientLight) obj.color.setHex(W.ambientColor);
+                    if(obj.isDirectionalLight) obj.color.setHex(W.sunColor);
+                });
             }
         } else {
             this.preRaceTimer = 0;

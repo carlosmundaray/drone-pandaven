@@ -5,50 +5,45 @@
 
 // -------- RACE GATE (Neon Hoop Checkpoint) --------
 class RaceGate {
-    constructor(x, y, z, rotation, gateIndex, scene) {
+    constructor(x, y, z, rotation, gateIndex, scene, gateColor) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.rotation = rotation || 0;
         this.gateIndex = gateIndex;
         this.scene = scene;
-        this.radius = 18; // flythrough radius
+        this.radius = 18;
         this.active = true;
         this.passed = false;
         this.glowPulse = Math.random() * Math.PI * 2;
         this.type = 'race_gate';
+        this.gateColor = gateColor || 0x00ffaa;
         this._create();
     }
 
     _create() {
         this.mesh = new THREE.Group();
+        const gc = this.gateColor;
 
         // Main torus (neon ring gate)
         const torusGeo = new THREE.TorusGeometry(this.radius, 1.8, 8, 24);
         this.gateMat = new THREE.MeshStandardMaterial({
-            color: 0x00ffaa,
-            emissive: 0x00ffaa,
-            emissiveIntensity: 2.0,
-            metalness: 0.9,
-            roughness: 0.1,
-            transparent: true,
-            opacity: 0.9
+            color: gc, emissive: gc, emissiveIntensity: 2.0,
+            metalness: 0.9, roughness: 0.1,
+            transparent: true, opacity: 0.9
         });
         this.gateMesh = new THREE.Mesh(torusGeo, this.gateMat);
         this.mesh.add(this.gateMesh);
 
-        // Inner glow plane (translucent disc to show the "hole")
+        // Inner glow plane
         const discGeo = new THREE.CircleGeometry(this.radius - 2, 24);
         this.discMat = new THREE.MeshBasicMaterial({
-            color: 0x00ffaa,
-            transparent: true,
-            opacity: 0.06,
-            side: THREE.DoubleSide
+            color: gc, transparent: true, opacity: 0.06, side: THREE.DoubleSide
         });
         this.disc = new THREE.Mesh(discGeo, this.discMat);
         this.mesh.add(this.disc);
 
-        // LED strips on the sides (vertical poles)
+        // LED strips on the sides
         const poleMat = new THREE.MeshStandardMaterial({
             color: 0x222222, metalness: 0.8, roughness: 0.3
         });
@@ -60,9 +55,8 @@ class RaceGate {
         rightPole.position.set(this.radius + 2, 0, 0);
         this.mesh.add(rightPole);
 
-        // LED strips (glowing lines on poles)
         const ledGeo = new THREE.CylinderGeometry(0.4, 0.4, this.radius * 2 + 8);
-        const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.6 });
+        const ledMat = new THREE.MeshBasicMaterial({ color: gc, transparent: true, opacity: 0.6 });
         const ledL = new THREE.Mesh(ledGeo, ledMat.clone());
         ledL.position.set(-this.radius - 2.5, 0, 0);
         this.mesh.add(ledL);
